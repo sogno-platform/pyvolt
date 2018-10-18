@@ -1,0 +1,7 @@
+# ide folders
+.idea
+.vscode
+
+# python folders
+*.egg-info/
+__pycache__
