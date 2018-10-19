@@ -2,7 +2,7 @@
 
 from distutils.core import setup
 
-setup(name='ACS-State-Estimation',
+setup(name='acs-state-estimation',
       version='0.1',
       description='State Estimation',
       author='Marco Pau',
