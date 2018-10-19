@@ -2,7 +2,7 @@ import numpy
 import math
 import matplotlib as plt
 import Network_data
-import Power_flow
+import powerflow
 import Meas_data
 import StateEstimator
 
@@ -50,7 +50,7 @@ slackV = 1.02
 Base = PerUnit(S,V)
 branch, node = Network_data.Network_95_nodes(Base, slackV)
 
-Vtrue, Itrue, Iinjtrue, S1true, S2true, Sinjtrue, num_iter = Power_flow.BC_power_flow(branch, node)
+Vtrue, Itrue, Iinjtrue, S1true, S2true, Sinjtrue, num_iter = powerflow.BC_power_flow(branch, node)
 
 """ Write here the indexes of the nodes/branches where the measurements are"""
 V_idx = numpy.array([1,11,55])
