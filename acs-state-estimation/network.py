@@ -30,8 +30,11 @@ class System():
 				index=len(self.P)-1
 				self.node.append(Node(value.name, value.mRID, value.pInjection, value.qInjection, index))
 			elif value.__class__.__name__=="ACLineSegment":
-				self.bR.append(value.r)
-				self.bX.append(value.x)
+				length=value.length
+				if length==0.0:
+					length=1.0
+				self.bR.append(value.r*length)
+				self.bX.append(value.x*length)
 				startNode=res[value.startNodeID]
 				endNode=res[value.endNodeID]
 				self.branch.append(Branch(value.r, value.x, startNode, endNode))	
