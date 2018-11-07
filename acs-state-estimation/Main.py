@@ -2,9 +2,10 @@ import numpy
 import math
 import matplotlib as plt
 import Network_data
-import powerflow
+import Power_flow
 import Meas_data
-import StateEstimator
+import NvStateEstimator
+#import BcStateEstimator
 
 class PerUnit:
     def __init__(self, S, V):
@@ -36,7 +37,6 @@ class Zdata_init:
         nmeas = meas.V.num + meas.I.num + 2*meas.Sinj.num + 2*meas.S1.num + 2*meas.S2.num + meas.Ipmu_mag.num + meas.Ipmu_phase.num + meas.Vpmu_mag.num + meas.Vpmu_phase.num
         self.mtype = numpy.zeros(nmeas)
         self.mval = numpy.zeros(nmeas)
-        self.mmeas = numpy.zeros(nmeas)
         self.mbranch = numpy.zeros(nmeas)
         self.mfrom = numpy.zeros(nmeas)
         self.mto = numpy.zeros(nmeas)
@@ -50,20 +50,20 @@ slackV = 1.02
 Base = PerUnit(S,V)
 branch, node = Network_data.Network_95_nodes(Base, slackV)
 
-Vtrue, Itrue, Iinjtrue, S1true, S2true, Sinjtrue, num_iter = powerflow.BC_power_flow(branch, node)
+Vtrue, Itrue, Iinjtrue, S1true, S2true, Sinjtrue, num_iter = Power_flow.NV_power_flow(branch, node)
 
 """ Write here the indexes of the nodes/branches where the measurements are"""
 V_idx = numpy.array([1,11,55])
-I_idx = numpy.array([])
+I_idx = numpy.array([13,36])
 Sinj_idx = numpy.linspace(2,node.num,node.num-1)
 S1_idx = numpy.array([1,11,28,55,59])
 S2_idx = numpy.array([10,54])
-Ipmu_idx = numpy.array([])
-Vpmu_idx = numpy.array([])
+Ipmu_idx = numpy.array([1,11,55])
+Vpmu_idx = numpy.array([13,36])
 
 """ Write here the percent uncertainties of the measurements""" 
 V_unc = 1
-I_unc = 0
+I_unc = 2
 Sinj_unc = 5
 S_unc = 2
 Pmu_mag_unc = 0.7
@@ -93,13 +93,15 @@ MC_trials = 1
 #Sinjest_matrix = numpy.zeros((MC_trials,node.num),dtype=numpy.complex_)
 iter_counter = numpy.zeros(MC_trials)
 
+Ymatr, Adj = Power_flow.Ymatrix_calc(branch,node)
+
 for mciter in range(0,MC_trials):
     if mciter%10 == 0:
         print(mciter)
         
     zdatameas = Meas_data.Zdatameas_creation(zdata, zdatameas)
   
-    Vest, Iest, Iinjest, S1est, S2est, Sinjest = StateEstimator.BcDsseCall(branch, node, zdatameas)
+    Vest, Iest, Iinjest, S1est, S2est, Sinjest = NvStateEstimator.DsseCall(branch, node, zdatameas, Ymatr, Adj)
     
 #    Iest_matrix[mciter] = Iest.complex
 #    Vest_matrix[mciter] = Vest.complex
