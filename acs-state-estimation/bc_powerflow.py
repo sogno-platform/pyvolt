@@ -67,23 +67,22 @@ def BC_power_flow(branches, nodes):
     V = np.ones(nodes.num) + 1j* np.zeros(nodes.num)
     num_iter = 0
     
-    State = np.zeros(2*branches.num)
+    State = np.ones(2*branches.num)
     State = np.concatenate((np.array([1,0]),State),axis=0)
     
     while diff > epsilon:
         for k in range(1,nodes.num+1):
             i = k-1
             m = 2*i
-            t = nodes.type[i]
-            if t == 'slack':
+            if nodes.type[i] == 'slack':
                 h[m] = np.inner(H[m],State)
                 h[m+1] = np.inner(H[m+1],State)
-            elif t == 'PQ':
+            elif nodes.type[i] == 'PQ':
                 z[m] = (nodes.pwr_flow_values[1][i]*V[i].real + nodes.pwr_flow_values[2][i]*V[i].imag)/(np.abs(V[i])**2)
                 z[m+1] = (nodes.pwr_flow_values[1][i]*V[i].imag - nodes.pwr_flow_values[2][i]*V[i].real)/(np.abs(V[i])**2)
                 h[m] = np.inner(H[m],State)
                 h[m+1] = np.inner(H[m+1],State)
-            elif t == 'PV':
+            elif nodes.type[i] == 'PV':
                 z[m] = (nodes.pwr_flow_values[1][i]*V[i].real + nodes.pwr_flow_values[2][i]*V[i].imag)/(np.abs(V[i])**2)
                 h[m] = np.inner(H[m],State)
                 h[m+1] = np.abs(V[i])
@@ -126,9 +125,7 @@ def BC_power_flow(branches, nodes):
     Sinj_rx = np.multiply(V, np.conj(Iinj))
     
     Sinj = np.real(Sinj_rx) + 1j * np.imag(Sinj_rx)
-    S1_rx = np.multiply(V[branchs.start-1], np.conj(I))
-    S2_rx = np.multiply(V[branchs.end-1], np.conj(I))
-    S1 = np.real(S1_rx) + 1j * np.imag(S1_rx)
-    S2 = np.real(S2_rx) + 1j * np.imag(S2_rx)
+    S1 = np.multiply(V[branchs.start-1], np.conj(I))
+    S2 = np.multiply(V[branchs.end-1], np.conj(I))
     
     return V, I, Iinj, S1, S2, Sinj, num_iter
