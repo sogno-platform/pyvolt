@@ -125,7 +125,7 @@ def BC_power_flow(branches, nodes):
     Sinj_rx = np.multiply(V, np.conj(Iinj))
     
     Sinj = np.real(Sinj_rx) + 1j * np.imag(Sinj_rx)
-    S1 = np.multiply(V[branchs.start-1], np.conj(I))
-    S2 = np.multiply(V[branchs.end-1], np.conj(I))
+    S1 = np.multiply(V[branches.start-1], np.conj(I))
+    S2 = np.multiply(V[branches.end-1], np.conj(I))
     
     return V, I, Iinj, S1, S2, Sinj, num_iter

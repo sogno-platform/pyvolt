@@ -58,10 +58,10 @@ def NV_power_flow(branch, node):
     
     epsilon = 10**(-10)
     diff = 5
-    V = np.ones(nodes.num) + 1j* np.zeros(nodes.num)
+    V = np.ones(node.num) + 1j* np.zeros(node.num)
     num_iter = 0
     
-    State = np.ones(2*branches.num)
+    State = np.ones(2*branch.num)
     State = np.concatenate((np.array([1,0]),State),axis=0)
     
     while diff > epsilon:
@@ -69,20 +69,20 @@ def NV_power_flow(branch, node):
             i = k-1
             m = 2*i
             i2 = i + node.num
-            if nodes.type[i] == 'slack':
+            if node.type[i] == 'slack':
                 h[m] = np.inner(H[m],State)
                 h[m+1] = np.inner(H[m+1],State)
-            elif nodes.type[i] == 'PQ':
-                z[m] = (node.pwr_flow_values[1][i]*V.real[i] + node.pwr_flow_values[2][i]*V.imag[i])/(V.mag[i]**2)
-                z[m+1] = (node.pwr_flow_values[1][i]*V.imag[i] - node.pwr_flow_values[2][i]*V.real[i])/(V.mag[i]**2)
+            elif node.type[i] == 'PQ':
+                z[m] = (node.pwr_flow_values[1][i]*V[i].real + node.pwr_flow_values[2][i]*V[i].imag)/(np.abs(V[i])**2)
+                z[m+1] = (node.pwr_flow_values[1][i]*V[i].imag - node.pwr_flow_values[2][i]*V[i].real)/(np.abs(V[i])**2)
                 h[m] = np.inner(H[m],State)
                 h[m+1] = np.inner(H[m+1],State)
-            elif nodes.type[i] == 'PV':
-                z[m] = (node.pwr_flow_values[1][i]*V.real[i] + node.pwr_flow_values[2][i]*V.imag[i])/(V.mag[i]**2)
+            elif node.type[i] == 'PV':
+                z[m] = (node.pwr_flow_values[1][i]*V[i].real + node.pwr_flow_values[2][i]*V[i].imag)/(np.abs(V[i])**2)
                 h[m] = np.inner(H[m],State)
-                h[m+1] = V.mag[i]
-                H[m+1][i] = np.cos(V.phase[i])
-                H[m+1][i2] = np.sin(V.phase[i])
+                h[m+1] = np.abs(V[i])
+                H[m+1][i] = np.cos(np.angle(V[i]))
+                H[m+1][i2] = np.sin(np.angle(V[i]))
         
         r = np.subtract(z,h)
         Hinv = np.linalg.inv(H)
@@ -115,8 +115,8 @@ def NV_power_flow(branch, node):
     Sinj_rx = np.multiply(V, np.conj(Iinj))
 
     Sinj = np.real(Sinj_rx) + 1j * np.imag(Sinj_rx)
-    S1 = np.multiply(V[branchs.start-1], np.conj(I))
-    S2 = - np.multiply(V[branchs.end-1], np.conj(I))
+    S1 = np.multiply(V[branch.start-1], np.conj(I))
+    S2 = - np.multiply(V[branch.end-1], np.conj(I))
     
     return V, I, Iinj, S1, S2, Sinj, num_iter
     
