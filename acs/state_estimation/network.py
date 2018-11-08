@@ -1,27 +1,30 @@
-class Node():
-	def __init__(self, name, uuid, pInjection, qInjection, index):
-		self.name=''
-		self.uuid=''
-		self.pInjection=0.0
-		self.qInjection=0.0
-		self.index=None
-		
-class Branch():
-	def __init__(self, r, x, bstart, bend):
-		self.r=0.0
-		self.x=0.0
-		self.startNode=bstart
-		self.endNode=bend
+import numpy as np
 
-class System():
-	def __init__(self, res):
-		self.node=[]
-		self.branch=[]
+class Node():
+	def __init__(self, name, uuid, v_mag, v_phase, p, q, index):
+		self.index = index
+		self.name = name
+		self.uuid = uuid
+		self.power = complex(p, q)
+		self.voltage = v_mag*np.cos(v_phase) + 1j * v_mag*np.sin(v_phase)
+				
+class Branch():
+	def __init__(self, r, x, start_node, end_node):
+		self.r = r
+		self.x = x
+		self.start_node = start_node
+		self.end_node = end_node
+
+class System():	
+	def __init__(self):
+		self.nodes=[]
+		self.branches=[]
 		self.bR=[]
 		self.bX=[]
 		self.P=[]
 		self.Q=[]
 	
+	def load_cim_data(res):
 		#this function is used to fill the vectors node, branch, bR, bX, P and Q
 		for key, value in res.items():
 			if value.__class__.__name__=="TopologicalNode":
@@ -46,3 +49,19 @@ class System():
 				self.branch.append(Branch(value.primaryConnection.r, value.primaryConnection.x, startNode, endNode))
 			else:
 				continue
+
+
+def load_python_data(nodes, branches):
+	system = System()
+	
+	for node_idx in range(0, nodes.num):
+		if node_idx == 0:			
+			system.nodes.append(Node('', '', nodes.P2[0], nodes.Q2[0], 0, 0, node_idx))
+		else:
+			system.nodes.append(Node('', '', 0, 0, nodes.P2[node_idx], nodes.Q2[node_idx], node_idx))
+	
+	for branch_idx in range(0, branches.num):
+		system.branches.append(Branch(branches.R[branch_idx], branches.X[branch_idx], 
+		system.nodes[branches.start[branch_idx]-1], system.nodes[branches.end[branch_idx]-1]))
+
+	return system
