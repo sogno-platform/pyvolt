@@ -15,7 +15,7 @@ def Ymatrix_calc(branch, node):
         Adjacencies[to].append(fr+1)
     return Ymatrix, Adjacencies
         
-def NV_power_flow(branch, node):
+def solve(branch, node):
     """It performs Power Flow by using rectangular node voltage state variables."""
     
     Ymatrix, Adj = Ymatrix_calc(branch,node)

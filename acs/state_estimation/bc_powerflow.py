@@ -20,8 +20,8 @@ class Znod:
         self.R = self.Z.real
         self.X = self.Z.imag
 
-def BC_power_flow(branches, nodes):
-    """It performs Power Flow by using rectangular branches current state variables."""
+def solve(branches, nodes):
+    """It performs Power Flow by using rectangular branch current state variables."""
 
     znod = Znod(branches,nodes)
     # real matrices storing complex numbers 

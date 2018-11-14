@@ -19,9 +19,9 @@ def Network_95_nodes(Base, slackV):
             self.type = ntype
             self.P = P
             self.Q = Q
-            P2 = numpy.concatenate(([slackV,],P),axis=0)
-            Q2 = numpy.concatenate(([0,],Q),axis=0)
-            self.pwr_flow_values = [ntype, P2, Q2]
+            self.P2 = numpy.concatenate(([slackV,],P),axis=0)
+            self.Q2 = numpy.concatenate(([0,],Q),axis=0)
+            self.pwr_flow_values = [ntype, self.P2, self.Q2]
             self.num = len(ntype)
 
     
