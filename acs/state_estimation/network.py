@@ -31,7 +31,7 @@ class System():
 				self.P.append(value.pInjection)
 				self.Q.append(value.qInjection)
 				index=len(self.P)-1
-				self.node.append(Node(value.name, value.mRID, value.pInjection, value.qInjection, index))
+				self.nodes.append(Node(value.name, value.mRID, value.pInjection, value.qInjection, index))
 			elif value.__class__.__name__=="ACLineSegment":
 				length=value.length
 				if length==0.0:
@@ -40,13 +40,13 @@ class System():
 				self.bX.append(value.x*length)
 				startNode=res[value.startNodeID]
 				endNode=res[value.endNodeID]
-				self.branch.append(Branch(value.r, value.x, startNode, endNode))	
+				self.branches.append(Branch(value.r, value.x, startNode, endNode))	
 			elif value.__class__.__name__=="PowerTransformer":
 				self.bR.append(value.primaryConnection.r)
 				self.bX.append(value.primaryConnection.x)
 				startNode=res[value.startNodeID]
 				endNode=res[value.endNodeID]
-				self.branch.append(Branch(value.primaryConnection.r, value.primaryConnection.x, startNode, endNode))
+				self.branches.append(Branch(value.primaryConnection.r, value.primaryConnection.x, startNode, endNode))
 			else:
 				continue
 
