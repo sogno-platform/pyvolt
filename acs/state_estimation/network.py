@@ -18,7 +18,7 @@ class Node():
 		self.power = complex(p, q)
 		self.voltage = v_mag*np.cos(v_phase) + 1j * v_mag*np.sin(v_phase)
 		self.type = BusType[bus_type]
-				
+
 class Branch():
 	def __init__(self, r, x, start_node, end_node):
 		self.r = r
@@ -26,7 +26,7 @@ class Branch():
 		self.start_node = start_node
 		self.end_node = end_node
 		self.z = self.r + 1j*self.x
-		self.y = 1/self.z
+		self.y = 1/self.z if (self.z != 0) else 0
 
 class System():	
 	def __init__(self):
@@ -36,8 +36,8 @@ class System():
 		self.bX=[]
 		self.P=[]
 		self.Q=[]
-	
-	def load_cim_data(res):
+
+	def load_cim_data(self, res):
 		#this function is used to fill the vectors node, branch, bR, bX, P and Q
 		for key, value in res.items():
 			if value.__class__.__name__=="TopologicalNode":
