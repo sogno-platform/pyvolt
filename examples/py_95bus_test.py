@@ -3,7 +3,8 @@ import math
 import matplotlib.pyplot as plt
 
 from acs.state_estimation import *  
-from acs.state_estimation import Power_flow
+#from acs.state_estimation import Power_flow
+
 # scenario data
 import py_95bus_network_data
 import py_95bus_meas_data
@@ -51,7 +52,7 @@ slackV = 1.02
 Base = PerUnit(S,V)
 branch, node = py_95bus_network_data.Network_95_nodes(Base, slackV)
 
-Vtrue, Itrue, Iinjtrue, S1true, S2true, Sinjtrue, num_iter = bc_powerflow.BC_power_flow(branch, node)
+Vtrue, Itrue, Iinjtrue, S1true, S2true, Sinjtrue, num_iter = bc_powerflow.solve(branch, node)
 
 """ Write here the indexes of the nodes/branches where the measurements are"""
 V_idx = np.array([1,11,55])

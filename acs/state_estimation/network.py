@@ -26,7 +26,7 @@ class Branch():
 		self.start_node = start_node
 		self.end_node = end_node
 		self.z = self.r + 1j*self.x
-		self.y = 1/self.z if (self.z != 0) else 0
+		self.y = 1/self.z if (self.z != 0) else float("inf")
 
 class System():	
 	def __init__(self):
