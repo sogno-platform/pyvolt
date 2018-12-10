@@ -78,3 +78,19 @@ def load_python_data(nodes, branches, type):
 		system.nodes[branches.start[branch_idx]-1], system.nodes[branches.end[branch_idx]-1]))
 
 	return system
+	
+def Ymatrix_calc(system):
+	nodes_num = len(system.nodes)
+	branches_num = len(system.branches)
+	Ymatrix = np.zeros((nodes_num, nodes_num),dtype=np.complex)
+	Adjacencies = [[] for _ in range(nodes_num)]
+	for index in range(branches_num):
+		fr = system.branches[index].start_node.index
+		to = system.branches[index].end_node.index
+		Ymatrix[fr][to] -= system.branches[index].y
+		Ymatrix[to][fr] -= system.branches[index].y
+		Ymatrix[fr][fr] += system.branches[index].y
+		Ymatrix[to][to] += system.branches[index].y
+		Adjacencies[fr].append(to+1)
+		Adjacencies[to].append(fr+1)
+	return Ymatrix, Adjacencies

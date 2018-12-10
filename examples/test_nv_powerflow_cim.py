@@ -12,11 +12,11 @@ from nv_powerflow_cim import solve as solve_cim
 from nv_powerflow import *
 
 class PerUnit:
-    def __init__(self, S, V):
-        self.S = S
-        self.V = V
-        self.I = S/V
-        self.Z = S/(V**2)
+	def __init__(self, S, V):
+		self.S = S
+		self.V = V
+		self.I = S/V
+		self.Z = S/(V**2)
 		
 		
 """ Insert here per unit values of the grid for power and voltage """
