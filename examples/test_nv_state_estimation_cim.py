@@ -69,6 +69,8 @@ S1_idx = np.array([1,11,28,55,59])
 S2_idx = np.array([10,54])
 Ipmu_idx = np.array([1,11,55])
 Vpmu_idx = np.array([13,36])
+#Ipmu_idx = np.array([])
+#Vpmu_idx = np.array([])
 
 """ Write here the percent uncertainties of the measurements""" 
 V_unc = 1
@@ -135,3 +137,4 @@ print("Iinjest==Iinjest_cim?: {}".format(np.array_equal(Iinjest.complex, Iinjest
 print("S1est==S1est_cim?: {}".format(np.array_equal(S1est.complex, S1est_cim.complex)))
 print("S2est==S2est_cim?: {}".format(np.array_equal(S2est.complex, S2est_cim.complex)))
 print("Sinjest==Sinjest_cim?: {}".format(np.array_equal(Sinjest.complex, Sinjest_cim.complex)))
+print(Vest.complex)

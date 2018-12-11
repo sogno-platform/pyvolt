@@ -1,11 +1,9 @@
 import math
 import sys
 
-sys.path.append(r"C:\Users\Martin\Desktop\git\state-estimation\acs\state_estimation")
-sys.path.append(r"C:\Users\Martin\Desktop\git\state-estimation\examples")
+sys.path.append("../acs/state_estimation")
+import network
 
-
-from network import *
 import py_95bus_network_data
 from nv_powerflow_cim import Ymatrix_calc as Ymatrix_calc_cim
 from nv_powerflow_cim import solve as solve_cim
@@ -26,7 +24,7 @@ slackV = 1.02
 
 Base = PerUnit(S,V)
 branch, node = py_95bus_network_data.Network_95_nodes(Base, slackV)
-system=load_python_data(node, branch, node.type)
+system=network.load_python_data(node, branch, node.type)
 
 V, I, Iinj, S1, S2, Sinj, num_iter = solve_cim(system)
 
