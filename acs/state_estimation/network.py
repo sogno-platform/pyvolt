@@ -45,20 +45,37 @@ class System():
 				self.Q.append(value.qInjection)
 				index=len(self.P)-1
 				self.nodes.append(Node(name=value.name, uuid=value.mRID, p=value.pInjection, q=value.qInjection, index=index))
-			elif value.__class__.__name__=="ACLineSegment":
+		for key, value in res.items():
+			if value.__class__.__name__=="ACLineSegment":
 				length=value.length
 				if length==0.0:
 					length=1.0
 				self.bR.append(value.r*length)
 				self.bX.append(value.x*length)
-				startNode=res[value.startNodeID]
-				endNode=res[value.endNodeID]
+				#startNode=res[value.startNodeID]
+				#endNode=res[value.endNodeID]
+				for i in range(len(self.nodes)):
+					if value.startNodeID==self.nodes[i].uuid:
+						startNode=self.nodes[i]
+						break
+				for i in range(len(self.nodes)):
+					if value.endNodeID==self.nodes[i].uuid:
+						endNode=self.nodes[i]
+						break
 				self.branches.append(Branch(value.r, value.x, startNode, endNode))	
 			elif value.__class__.__name__=="PowerTransformer":
 				self.bR.append(value.primaryConnection.r)
 				self.bX.append(value.primaryConnection.x)
-				startNode=res[value.startNodeID]
-				endNode=res[value.endNodeID]
+				#startNode=res[value.startNodeID]
+				#endNode=res[value.endNodeID]
+				for i in range(len(self.nodes)):
+					if value.startNodeID==self.nodes[i].uuid:
+						startNode=self.nodes[i]
+						break
+				for i in range(len(self.nodes)):
+					if value.endNodeID==self.nodes[i].uuid:
+						endNode=self.nodes[i]
+						break
 				self.branches.append(Branch(value.primaryConnection.r, value.primaryConnection.x, startNode, endNode))
 			else:
 				continue

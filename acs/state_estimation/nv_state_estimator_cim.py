@@ -85,9 +85,11 @@ def DsseCall(system, zdata, Ymatrix, Adj):
 	return Vest, Iest, Iinjest, S1est, S2est, Sinjest
 
 
-def DsseTrad(branch, node, zdata, Ymatrix, Adj):
+def DsseTrad(system, zdata, Ymatrix, Adj):
 	""" It performs state estimation using rectangular node voltage state variables 
 	and it is customized to work without PMU measurements"""
+	
+	nodes_num = len(system.nodes)
 	
 	vidx = numpy.where(zdata.mtype==1)
 	pidx = numpy.where(zdata.mtype==2)
@@ -132,11 +134,11 @@ def DsseTrad(branch, node, zdata, Ymatrix, Adj):
 		
 	""" Jacobian for Power Injection Measurements (converted to equivalent 
 	rectangualar current measurements) """
-	H2 = numpy.zeros((npi,2*node.num-1))
-	H3 = numpy.zeros((nqi,2*node.num-1))
+	H2 = numpy.zeros((npi,2*nodes_num-1))
+	H3 = numpy.zeros((nqi,2*nodes_num-1))
 	for i in range(npi):
 		m = buspi[i]-1
-		m2 = m + node.num - 1
+		m2 = m + nodes_num - 1
 		H2[i][m] = - Gmatrix[m][m]
 		H2[i][m2] = Bmatrix[m][m]
 		H3[i][m] = - Bmatrix[m][m]
@@ -147,14 +149,14 @@ def DsseTrad(branch, node, zdata, Ymatrix, Adj):
 		if 0 in idx:
 			pos = numpy.where(idx==0)
 			idx = numpy.delete(idx,pos)
-		idx2 = idx + node.num-1
+		idx2 = idx + nodes_num-1
 		H2[i][idx2] = Bmatrix[m][idx]
 		H3[i][idx2] = - Gmatrix[m][idx]
 		
 	""" Jacobian for branch Power Measurements (converted to equivalent 
 	rectangualar current measurements)"""
-	H4 = numpy.zeros((npf,2*node.num-1))
-	H5 = numpy.zeros((nqf,2*node.num-1))
+	H4 = numpy.zeros((npf,2*nodes_num-1))
+	H5 = numpy.zeros((nqf,2*nodes_num-1))
 	for i in range(npf):
 		m = fbuspf[i]-1
 		n = tbuspf[i]-1
@@ -163,22 +165,22 @@ def DsseTrad(branch, node, zdata, Ymatrix, Adj):
 		H5[i][m] = - Bmatrix[m][n]
 		H5[i][n] = Bmatrix[m][n]
 		if m > 0:
-			m2 = m + node.num-1
+			m2 = m + nodes_num-1
 			H4[i][m2] = Bmatrix[m][n]
 			H5[i][m2] = - Gmatrix[m][n]
 		if n > 0:
-			n2 = n + node.num-1
+			n2 = n + nodes_num-1
 			H4[i][n2] = - Bmatrix[m][n]
 			H5[i][n2] = Gmatrix[m][n]
 		
 	epsilon = 5
-	Vr = numpy.ones(node.num)
-	Vx = numpy.zeros(node.num)
+	Vr = numpy.ones(nodes_num)
+	Vx = numpy.zeros(nodes_num)
 	V = Real_to_all(Vr, Vx)
 	num_iter = 0
 	
-	StateVr = numpy.ones(node.num)
-	StateVx = numpy.zeros(node.num-1)
+	StateVr = numpy.ones(nodes_num)
+	StateVx = numpy.zeros(nodes_num-1)
 	State = numpy.concatenate((StateVr,StateVx),axis=0)
 	
 	while epsilon>10**(-6):
@@ -195,12 +197,12 @@ def DsseTrad(branch, node, zdata, Ymatrix, Adj):
 		
 		""" Voltage Magnitude Measurements """
 		h1 = V.mag[busvi-1]
-		H1 = numpy.zeros((nvi,2*node.num-1))
+		H1 = numpy.zeros((nvi,2*nodes_num-1))
 		for i in range(nvi):
 			m = busvi[i]-1
 			H1[i][m] = numpy.cos(V.phase[m])
 			if m > 0:
-				m2 = m + node.num-1
+				m2 = m + nodes_num-1
 				H1[i][m2] = numpy.sin(V.phase[m])
 				
 		""" Power Injection Measurements """
@@ -216,7 +218,7 @@ def DsseTrad(branch, node, zdata, Ymatrix, Adj):
 		h6im = numpy.zeros((nii))
 		h6complex = numpy.zeros((nii),dtype=complex)
 		h6 = numpy.ones((nii))
-		H6 = numpy.zeros((nii,2*node.num-1))
+		H6 = numpy.zeros((nii,2*nodes_num-1))
 		for i in range(nii):
 			m = fbusiamp[i]-1
 			n = tbusiamp[i]-1
@@ -228,10 +230,10 @@ def DsseTrad(branch, node, zdata, Ymatrix, Adj):
 			H6[i][m] = - Yabs_matrix[m][n]*(numpy.cos(Yphase_matrix[m][n])*h6re[i] + numpy.sin(Yphase_matrix[m][n])*h6im[i])/h6[i]
 			H6[i][n] = Yabs_matrix[m][n]*(numpy.cos(Yphase_matrix[m][n])*h6re[i] + numpy.sin(Yphase_matrix[m][n])*h6im[i])/h6[i]
 			if m > 0:
-				m2 = m + node.num-1
+				m2 = m + nodes_num-1
 				H6[i][m2] = - Yabs_matrix[m][n]*(numpy.cos(Yphase_matrix[m][n])*h6im[i] - numpy.sin(Yphase_matrix[m][n])*h6re[i])/h6[i]
 			if n > 0:
-				n2 = n + node.num-1
+				n2 = n + nodes_num-1
 				H6[i][n2] = Yabs_matrix[m][n]*(numpy.cos(Yphase_matrix[m][n])*h6im[i] - numpy.sin(Yphase_matrix[m][n])*h6re[i])/h6[i]
 		
 		""" WLS computation """
@@ -241,15 +243,15 @@ def DsseTrad(branch, node, zdata, Ymatrix, Adj):
 		g = numpy.inner(H.transpose(),numpy.inner(W,res))
 		WH = numpy.inner(W,H.transpose())
 		G = numpy.inner(H.transpose(),WH.transpose())
-		
+
 		Ginv = numpy.linalg.inv(G)
 		Delta_State = numpy.inner(Ginv,g)
 		
 		State = State + Delta_State
 		epsilon = numpy.amax(numpy.absolute(Delta_State))
 		
-		V.real = State[:node.num]
-		V.imag = State[node.num:]
+		V.real = State[:nodes_num]
+		V.imag = State[nodes_num:]
 		V.imag = numpy.concatenate(([0],V.imag), axis=0)
 		V = Real_to_all(V.real, V.imag)
 		
@@ -259,9 +261,11 @@ def DsseTrad(branch, node, zdata, Ymatrix, Adj):
 
 
 
-def DssePmu(branch, node, zdata, Ymatrix, Adj):
+def DssePmu(system, zdata, Ymatrix, Adj):
 	""" It performs state estimation using rectangular node voltage state variables 
 	and it is customized to work using PMU measurements."""
+	
+	nodes_num = len(system.nodes)
 	
 	pidx = numpy.where(zdata.mtype==2)
 	qidx = numpy.where(zdata.mtype==3)
@@ -306,11 +310,11 @@ def DssePmu(branch, node, zdata, Ymatrix, Adj):
 		
 	""" Jacobian for Power Injection Measurements (converted to equivalent 
 	rectangualar current measurements) """
-	H2 = numpy.zeros((npi,2*node.num))
-	H3 = numpy.zeros((nqi,2*node.num))
+	H2 = numpy.zeros((npi,2*nodes_num))
+	H3 = numpy.zeros((nqi,2*nodes_num))
 	for i in range(npi):
 		m = buspi[i] - 1
-		m2 = m + node.num
+		m2 = m + nodes_num
 		H2[i][m] = - Gmatrix[m][m]
 		H2[i][m2] = Bmatrix[m][m]
 		H3[i][m] = - Bmatrix[m][m]
@@ -318,14 +322,14 @@ def DssePmu(branch, node, zdata, Ymatrix, Adj):
 		idx = numpy.subtract(Adj[m],1)
 		H2[i][idx] = - Gmatrix[m][idx]
 		H3[i][idx] = - Bmatrix[m][idx]
-		idx2 = idx + node.num
+		idx2 = idx + nodes_num
 		H2[i][idx2] = Bmatrix[m][idx]
 		H3[i][idx2] = - Gmatrix[m][idx]
 		
 	""" Jacobian for branch Power Measurements (converted to equivalent 
 	rectangualar current measurements)"""
-	H4 = numpy.zeros((npf,2*node.num))
-	H5 = numpy.zeros((nqf,2*node.num))
+	H4 = numpy.zeros((npf,2*nodes_num))
+	H5 = numpy.zeros((nqf,2*nodes_num))
 	for i in range(npf):
 		m = fbuspf[i]-1
 		n = tbuspf[i]-1
@@ -333,16 +337,16 @@ def DssePmu(branch, node, zdata, Ymatrix, Adj):
 		H4[i][n] = Gmatrix[m][n]
 		H5[i][m] = - Bmatrix[m][n]
 		H5[i][n] = Bmatrix[m][n]
-		m2 = m + node.num
+		m2 = m + nodes_num
 		H4[i][m2] = Bmatrix[m][n]
 		H5[i][m2] = - Gmatrix[m][n]
-		n2 = n + node.num
+		n2 = n + nodes_num
 		H4[i][n2] = - Bmatrix[m][n]
 		H5[i][n2] = Gmatrix[m][n]
 		
 	""" Jacobian for Voltage Pmu Measurements (converted into rectangular) """
-	H7 = numpy.zeros((nvpmu,2*node.num))
-	H8 = numpy.zeros((nvpmu,2*node.num))
+	H7 = numpy.zeros((nvpmu,2*nodes_num))
+	H8 = numpy.zeros((nvpmu,2*nodes_num))
 	for i in range(nvpmu):
 		idx1 = vmagpmuidx[0][i]
 		idx2 = vphasepmuidx[0][i]
@@ -359,12 +363,12 @@ def DssePmu(branch, node, zdata, Ymatrix, Adj):
 		W[idx2][idx1] = final_cov[1][0]
 		m = busvpmu[i]-1
 		H7[i][m] = 1
-		m2 = m + node.num
+		m2 = m + nodes_num
 		H8[i][m2] = 1
 		
 	""" Jacobian for Current Pmu Measurements (converted into rectangular) """
-	H9 = numpy.zeros((nipmu,2*node.num))
-	H10 = numpy.zeros((nipmu,2*node.num))
+	H9 = numpy.zeros((nipmu,2*nodes_num))
+	H10 = numpy.zeros((nipmu,2*nodes_num))
 	for i in range(nipmu):
 		idx1 = imagpmuidx[0][i]
 		idx2 = iphasepmuidx[0][i]
@@ -385,21 +389,21 @@ def DssePmu(branch, node, zdata, Ymatrix, Adj):
 		H9[i][n] = Gmatrix[m][n]
 		H10[i][m] = - Bmatrix[m][n]
 		H10[i][n] = Bmatrix[m][n]
-		m2 = m + node.num
-		n2 = n + node.num
+		m2 = m + nodes_num
+		n2 = n + nodes_num
 		H9[i][m2] = Bmatrix[m][n]
 		H9[i][n2] = - Bmatrix[m][n]
 		H10[i][m2] = - Gmatrix[m][n]
 		H10[i][n2] = Gmatrix[m][n]
 		
 	epsilon = 5
-	Vr = numpy.ones(node.num)
-	Vx = numpy.zeros(node.num)
+	Vr = numpy.ones(nodes_num)
+	Vx = numpy.zeros(nodes_num)
 	V = Real_to_all(Vr, Vx)
 	num_iter = 0
 	
-	StateVr = numpy.ones(node.num)
-	StateVx = numpy.zeros(node.num)
+	StateVr = numpy.ones(nodes_num)
+	StateVx = numpy.zeros(nodes_num)
 	State = numpy.concatenate((StateVr,StateVx),axis=0)
 	
 	H = numpy.concatenate((H2,H3,H4,H5,H7,H8,H9,H10),axis=0)
@@ -431,8 +435,8 @@ def DssePmu(branch, node, zdata, Ymatrix, Adj):
 		State = State + Delta_State
 		epsilon = numpy.amax(numpy.absolute(Delta_State))
 		
-		V.real = State[:node.num]
-		V.imag = State[node.num:]
+		V.real = State[:nodes_num]
+		V.imag = State[nodes_num:]
 		V = Real_to_all(V.real, V.imag)
 		
 		num_iter = num_iter+1
@@ -479,8 +483,7 @@ def DsseMixed(system, zdata, Ymatrix, Adj):
 	tbusipmu = zdata.mto[imagpmuidx]
 	   
 	z = zdata.mval
-	#print("zl:")
-	#print(z)
+
 	Pinj = z[pidx]
 	Qinj = z[qidx]
 	Pbr = z[pfidx]
