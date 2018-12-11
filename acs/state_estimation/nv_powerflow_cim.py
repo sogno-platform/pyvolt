@@ -1,7 +1,7 @@
 import numpy as np
 import math
 from network import BusType
-		
+
 def Ymatrix_calc(system):
 	nodes_num = len(system.nodes)
 	branches_num = len(system.branches)
@@ -17,7 +17,7 @@ def Ymatrix_calc(system):
 		Adjacencies[fr].append(to+1)
 		Adjacencies[to].append(fr+1)
 	return Ymatrix, Adjacencies
-		
+
 def solve(system):
 	"""It performs Power Flow by using rectangular node voltage state variables."""
 	
@@ -133,4 +133,3 @@ def solve(system):
 		S2=np.append(S2, -V[system.branches[i].end_node.index]*(I_conj[i]))
 
 	return V, I, Iinj, S1, S2, Sinj, num_iter
-	

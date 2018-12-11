@@ -465,7 +465,7 @@ def DsseMixed(branch, node, zdata, Ymatrix, Adj):
     tbusipmu = zdata.mto[imagpmuidx]
        
     z = zdata.mval
-    
+    #print(z)
     Pinj = z[pidx]
     Qinj = z[qidx]
     Pbr = z[pfidx]
@@ -499,7 +499,7 @@ def DsseMixed(branch, node, zdata, Ymatrix, Adj):
         idx2 = idx + node.num
         H2[i][idx2] = Bmatrix[m][idx]
         H3[i][idx2] = - Gmatrix[m][idx]
-        
+           
     """ Jacobian for branch Power Measurements (converted to equivalent 
     rectangualar current measurements)"""
     H4 = numpy.zeros((npf,2*node.num))
@@ -517,7 +517,7 @@ def DsseMixed(branch, node, zdata, Ymatrix, Adj):
         n2 = n + node.num
         H4[i][n2] = - Bmatrix[m][n]
         H5[i][n2] = Gmatrix[m][n]
-        
+            
     """ Jacobian for Voltage Pmu Measurements (converted into rectangular) """
     H7 = numpy.zeros((nvpmu,2*node.num))
     H8 = numpy.zeros((nvpmu,2*node.num))
@@ -569,7 +569,7 @@ def DsseMixed(branch, node, zdata, Ymatrix, Adj):
         H9[i][n2] = - Bmatrix[m][n]
         H10[i][m2] = - Gmatrix[m][n]
         H10[i][n2] = Gmatrix[m][n]
-        
+           		
     epsilon = 5
     Vr = numpy.ones(node.num)
     Vx = numpy.zeros(node.num)

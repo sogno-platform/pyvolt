@@ -18,7 +18,7 @@ class Node():
 		self.power = complex(p, q)
 		self.voltage = v_mag*np.cos(v_phase) + 1j * v_mag*np.sin(v_phase)
 		self.type = BusType[bus_type]
-				
+
 class Branch():
 	def __init__(self, r, x, start_node, end_node):
 		self.r = r
@@ -26,7 +26,7 @@ class Branch():
 		self.start_node = start_node
 		self.end_node = end_node
 		self.z = self.r + 1j*self.x
-		self.y = 1/self.z
+		self.y = 1/self.z if (self.z != 0) else float("inf")
 
 class System():	
 	def __init__(self):
@@ -36,8 +36,8 @@ class System():
 		self.bX=[]
 		self.P=[]
 		self.Q=[]
-	
-	def load_cim_data(res):
+
+	def load_cim_data(self, res):
 		#this function is used to fill the vectors node, branch, bR, bX, P and Q
 		for key, value in res.items():
 			if value.__class__.__name__=="TopologicalNode":
@@ -45,20 +45,37 @@ class System():
 				self.Q.append(value.qInjection)
 				index=len(self.P)-1
 				self.nodes.append(Node(name=value.name, uuid=value.mRID, p=value.pInjection, q=value.qInjection, index=index))
-			elif value.__class__.__name__=="ACLineSegment":
+		for key, value in res.items():
+			if value.__class__.__name__=="ACLineSegment":
 				length=value.length
 				if length==0.0:
 					length=1.0
 				self.bR.append(value.r*length)
 				self.bX.append(value.x*length)
-				startNode=res[value.startNodeID]
-				endNode=res[value.endNodeID]
+				#startNode=res[value.startNodeID]
+				#endNode=res[value.endNodeID]
+				for i in range(len(self.nodes)):
+					if value.startNodeID==self.nodes[i].uuid:
+						startNode=self.nodes[i]
+						break
+				for i in range(len(self.nodes)):
+					if value.endNodeID==self.nodes[i].uuid:
+						endNode=self.nodes[i]
+						break
 				self.branches.append(Branch(value.r, value.x, startNode, endNode))	
 			elif value.__class__.__name__=="PowerTransformer":
 				self.bR.append(value.primaryConnection.r)
 				self.bX.append(value.primaryConnection.x)
-				startNode=res[value.startNodeID]
-				endNode=res[value.endNodeID]
+				#startNode=res[value.startNodeID]
+				#endNode=res[value.endNodeID]
+				for i in range(len(self.nodes)):
+					if value.startNodeID==self.nodes[i].uuid:
+						startNode=self.nodes[i]
+						break
+				for i in range(len(self.nodes)):
+					if value.endNodeID==self.nodes[i].uuid:
+						endNode=self.nodes[i]
+						break
 				self.branches.append(Branch(value.primaryConnection.r, value.primaryConnection.x, startNode, endNode))
 			else:
 				continue
@@ -78,3 +95,19 @@ def load_python_data(nodes, branches, type):
 		system.nodes[branches.start[branch_idx]-1], system.nodes[branches.end[branch_idx]-1]))
 
 	return system
+	
+def Ymatrix_calc(system):
+	nodes_num = len(system.nodes)
+	branches_num = len(system.branches)
+	Ymatrix = np.zeros((nodes_num, nodes_num),dtype=np.complex)
+	Adjacencies = [[] for _ in range(nodes_num)]
+	for index in range(branches_num):
+		fr = system.branches[index].start_node.index
+		to = system.branches[index].end_node.index
+		Ymatrix[fr][to] -= system.branches[index].y
+		Ymatrix[to][fr] -= system.branches[index].y
+		Ymatrix[fr][fr] += system.branches[index].y
+		Ymatrix[to][to] += system.branches[index].y
+		Adjacencies[fr].append(to+1)
+		Adjacencies[to].append(fr+1)
+	return Ymatrix, Adjacencies

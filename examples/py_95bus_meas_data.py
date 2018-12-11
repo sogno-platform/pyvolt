@@ -60,8 +60,8 @@ def Zdatatrue_creation(zdata, zdatameas, meas, branch, V, I, Iinj, S1, S2, Sinj)
     fr7 = meas.Vpmu_mag.index
     fr8 = meas.Vpmu_phase.index
     fr9 = branch.start[meas.Ipmu_mag.index-1]
-    fr10 = branch.start[meas.Ipmu_phase.index-1]
-    
+    fr10 = branch.start[meas.Ipmu_phase.index-1]  
+	
     zdata.mfrom = np.concatenate((fr1,fr2,fr3,fr4_1,fr4_2,fr5_1,fr5_2,fr6,fr7,fr8,fr9,fr10),axis=0)
     zdata.mfrom = zdata.mfrom.astype(int)
     zdatameas.mfrom = np.concatenate((fr1,fr2,fr3,fr4_1,fr4_2,fr5_1,fr5_2,fr6,fr7,fr8,fr9,fr10),axis=0)

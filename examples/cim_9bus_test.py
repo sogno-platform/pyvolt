@@ -1,7 +1,11 @@
 import sys
-sys.path.append("..\..\cimpy")
-import cimpy
 import logging
+
+sys.path.append("..\..\cimpy")
+sys.path.append("..")
+import cimpy
+from acs.state_estimation.network import System  
+
 logging.basicConfig(level=logging.INFO)
 
 xml_files=[r"..\..\cim-grid-data\WSCC-09\WSCC-09_Neplan_EQ.xml", 
@@ -11,7 +15,8 @@ xml_files=[r"..\..\cim-grid-data\WSCC-09\WSCC-09_Neplan_EQ.xml",
 res=cimpy.cimread(xml_files)
 cimpy.setNodes(res)
 cimpy.setPowerTransformerEnd(res)
-network=System(res)
+network=System()
+network.load_cim_data(res)
 
 print("Vector bR:")
 print(network.bR)
