@@ -5,3 +5,6 @@
 # python folders
 *.egg-info/
 __pycache__
+
+# log files
+*.log
