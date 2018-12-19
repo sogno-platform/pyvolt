@@ -105,8 +105,8 @@ Vest_real, Iest, Iinjest, S1est, S2est, Sinjest = nv_state_estimator_cim.DsseCal
 print(Vest_real.complex - Vtrue)
 
 # Plot comparison
-line_width = 3
-fontsize = 22
+line_width = 6
+fontsize = 26
 
 plt.figure()
 ax = plt.subplot()
@@ -121,14 +121,14 @@ Vest_ideal_filtered = [abs(Vest_ideal.complex[idx]/1000) for idx in idx_filter]
 Vest_real_filtered = [abs(Vest_real.complex[idx]/1000) for idx in idx_filter]
 
 
-plt.plot(Vest_ideal_filtered, linewidth=line_width, linestyle='-', label="State estimator (ideal measurements)")
+plt.plot(Vest_ideal_filtered, linewidth=line_width, linestyle='-', label="state estimator (ideal measurements)")
 plt.plot(Vtrue_filtered, linewidth=line_width, linestyle=':', label="DPsim load flow results")
-plt.plot(Vest_real_filtered, linewidth=line_width, linestyle='-', label="State estimator (real measurements)")
+plt.plot(Vest_real_filtered, linewidth=line_width, linestyle='-', label="state estimator (non-ideal measurements)")
 
 plt.xticks(range(len(system.nodes)), fontsize=fontsize)
 plt.yticks(fontsize=fontsize)
 ax.set_xticklabels(nodes_uuid_filtered)
-plt.ylabel("Node Voltage [kV]", fontsize=fontsize)
+plt.ylabel("Node voltage [kV]", fontsize=fontsize)
 plt.xlim([0,len(system.nodes)-2])
-plt.legend(fontsize=fontsize-2)
+plt.legend(fontsize=fontsize)
 plt.show()
