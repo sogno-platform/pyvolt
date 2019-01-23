@@ -5,14 +5,15 @@ import copy
 import logging
 import matplotlib.pyplot as plt
 
-sys.path.append("../../cimpy")
+sys.path.append("../../../cimpy")
 import cimpy
 
 sys.path.append("./acs/state_estimation")
 import network
 import nv_powerflow_cim
 from measurement_generator import *
-from dpsim_reader import * # TODO replace with functions from villas.dataprocessing
+sys.path.append("../../../dataprocessing")
+from villas.dataprocessing.readtools import *
 import nv_state_estimator_cim
 
 logging.basicConfig(filename='CIGRE.log', level=logging.INFO)
@@ -33,12 +34,13 @@ system = network.System()
 system.load_cim_data(res)
 Ymatr, Adj = network.Ymatrix_calc(system)
 
-loadflow_results = read_data(loadflow_results_file)
+#read Input-Ergebnisdatei
+ts_dpsim = read_timeseries_csv(loadflow_results_file)
 
 #order readed data according to system.nodes
-Vtrue=np.zeros(len(loadflow_results), dtype=np.complex_)
+Vtrue=np.zeros(len(ts_dpsim), dtype=np.complex_)
 for elem in range(len(system.nodes)): 
-	Vtrue[elem] = loadflow_results[system.nodes[elem].uuid]
+	Vtrue[elem] = ts_dpsim[system.nodes[elem].uuid].values[0]
 
 """ Write here the indexes of the nodes/branches where the measurements are"""
 V_idx = np.array([])
