@@ -27,6 +27,24 @@ class PF_Results():
 		for elem in range(len(system.nodes)): 
 			self.V[elem] = loadflow_results[system.nodes[elem].uuid]
 
+class PowerflowNode():
+	def __init__(self, topo_node):		
+		self.topology_node = topo_node		
+		self.voltage = complex(0, 0)		
+		self.current = complex(0, 0)
+		self.power = complex(0, 0)
+
+class PowerflowBranch():
+	def __init__(self, topo_branch):
+		self.topology_branch = topo_branch
+		self.current = complex(0, 0)
+		self.power = complex(0, 0)
+
+class PowerflowResults():	
+	def __init__(self):
+		self.nodes=[]
+		self.branches=[]
+
 def solve(system):
 	"""It performs Power Flow by using rectangular node voltage state variables."""
 	
