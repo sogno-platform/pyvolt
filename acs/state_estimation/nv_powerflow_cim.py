@@ -1,9 +1,13 @@
-import numpy as np
+import sys
 import math
+import numpy as np
 from network import Ymatrix_calc
 from network import BusType
 
-class Results():
+sys.path.append("../../../dataprocessing")
+from dpsim_reader import read_data
+
+class PF_Results():
 	def __init__(self):
 		self.V = []
 		self.I = []
@@ -11,8 +15,17 @@ class Results():
 		self.S1 = []
 		self.S2 = []
 		self.SInj = []
-		self.num_iter = []
+		self.num_iter = 0
 		
+	def read_data(self, file_name, system):
+		"""
+		To read the voltages from a input file
+		"""
+		loadflow_results = read_data(loadflow_results_file)
+		#order readed data according to system.nodes
+		self.V = np.zeros(len(loadflow_results), dtype=np.complex_)
+		for elem in range(len(system.nodes)): 
+			self.V[elem] = loadflow_results[system.nodes[elem].uuid]
 
 def solve(system):
 	"""It performs Power Flow by using rectangular node voltage state variables."""
@@ -93,54 +106,22 @@ def solve(system):
 				
 		num_iter = num_iter+1
 		
-	Irx = np.zeros((branches_num),dtype=np.complex)
-	for idx in range(branches_num):
-		fr = system.branches[idx].start_node.index
-		to = system.branches[idx].end_node.index
-		Irx[idx] = - (V[fr] - V[to])*Ymatrix[fr][to]
-	Ir = np.real(Irx)
-	Ix = np.imag(Irx)
+	return V, num_iter
 	
-	I = Ir + 1j*Ix
-	Iinj_r = np.zeros(nodes_num)
-	Iinj_x = np.zeros(nodes_num)
-	
-	for k in range(0, nodes_num):
-		to=[]
-		fr=[]
-		for m in range(len(system.branches)):
-			if k==system.branches[m].start_node.index:
-				fr.append(m)
-			if k==system.branches[m].end_node.index:
-				to.append(m)
-
-		Iinj_r[k] = np.sum(I[to].real) - np.sum(I[fr].real)
-		Iinj_x[k] = np.sum(I[to].imag) - np.sum(I[fr].imag)
-		
-	Iinj = Iinj_r + 1j * Iinj_x
-	Sinj_rx = np.multiply(V, np.conj(Iinj))
-	Sinj = np.real(Sinj_rx) + 1j * np.imag(Sinj_rx)
-	
-	S1=np.array([])
-	S2=np.array([])
-	I_conj=np.conj(I)
-	for i in range(0, branches_num):
-		S1=np.append(S1, V[system.branches[i].start_node.index]*(I_conj[i]))
-		S2=np.append(S2, -V[system.branches[i].end_node.index]*(I_conj[i]))
-
-	return V, I, Iinj, S1, S2, Sinj, num_iter
-	
-def calculateI(network, V):
+def calculateI(system, V):
 	"""
 	To calculate the branch currents
 	"""
+	Ymatrix, Adj = Ymatrix_calc(system)
 	I = np.zeros((len(system.branches)), dtype=np.complex)
-	for idx in range(branches_num):
+	for idx in range(len(system.branches)):
 		fr = system.branches[idx].start_node.index
 		to = system.branches[idx].end_node.index
 		I[idx] = - (V[fr] - V[to])*Ymatrix[fr][to]
-
-def calculateInj(network, I):
+	
+	return I
+		
+def calculateInj(system, I):
 	"""
 	To calculate current injections at a node
 	"""
@@ -153,7 +134,7 @@ def calculateInj(network, I):
 				fr.append(m)
 			if k==system.branches[m].end_node.index:
 				to.append(m)
-		Iinj = np.sum(I[to]) - np.sum(I[fr])
+		Iinj[k] = np.sum(I[to]) - np.sum(I[fr])
 	
 	return Iinj
 
@@ -163,16 +144,16 @@ def calculateS1(system, V, I):
 	"""
 	S1 = np.zeros((len(system.branches)), dtype=np.complex)
 	for i in range(0, len(system.branches)):
-		S1 = np.append(S1, V[system.branches[i].start_node.index]*(np.conj(I[i])))
+		S1[i] = V[system.branches[i].start_node.index]*(np.conj(I[i]))
 	return S1
 	
-def calculateS2():
+def calculateS2(system, V, I):
 	"""
 	To calculate powerflow on branches
 	"""
 	S2 = np.zeros((len(system.branches)), dtype=np.complex)
 	for i in range(0, len(system.branches)):
-		S2 = np.append(S2, -V[system.branches[i].end_node.index]*(I_conj[i]))
+		S2[i] = -V[system.branches[i].end_node.index]*(np.conj(I[i]))
 	return S2
 	
 def calculateSinj(V, Iinj):
