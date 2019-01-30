@@ -9,13 +9,13 @@ from dpsim_reader import read_data
 
 class PF_Results():
 	def __init__(self):
-		self.V = []
-		self.I = []
-		self.Iinj = [] 
-		self.S1 = []
-		self.S2 = []
-		self.SInj = []
-		self.num_iter = 0
+		self.V = [] #Node Voltage
+		self.I = [] #Branch Current
+		self.Iinj = [] #Injection Current
+		self.S1 = [] #Branch Complex Power measured at 1st node of the line
+		self.S2 = [] #Branch Complex Power measured at 2nd node of the line
+		self.SInj = [] #Complex Power Injection
+		self.num_iter = 0 #Number of Iterations of Newton Rapson
 		
 	def read_data(self, file_name, system):
 		"""

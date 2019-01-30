@@ -21,20 +21,29 @@ class Complex_to_all:
 def DsseCall(system, zdata, Ymatrix, Adj):
 	""" It identifies the type of measurements present in the measurement set and 
 	calls the appropriate estimator for dealing with them."""
-	
+	# system: model of the system (nodes, lines, topology)
+	# zdata: Vector of measurements in Input (voltages, currents, powers)
+	# Ymatrix: Parameters of the lines (R,X,G,B)
+	# Adj: Adjacency Matrix
+
+	# 1. Select type of Estimator.
+	# If at least a PMU is present we launch the combined estimator, otherwise a simple traditional etimator 
+
 	trad_code = 0
 	PMU_code = 0
-		
-	Vmag_meas = numpy.where(zdata.mtype==1)
+
+	Vmag_meas = numpy.where(zdata.mtype==1) #Voltage Magnitude measurement: type 1
 	if len(Vmag_meas[0])>0:
 		trad_code = 1
 		
-	Vpmu_meas = numpy.where(zdata.mtype==7)
+	Vpmu_meas = numpy.where(zdata.mtype==7) #Voltage Phasor (Magnitude+Phase) measurement: type 7
 	if len(Vpmu_meas[0])>0:
 		PMU_code = 2
 		
 	est_code = trad_code + PMU_code
 		
+	# 2. Run Estimator.
+
 	if est_code == 1:
 		Vest = DsseTrad(system, zdata, Ymatrix, Adj)
 	elif est_code == 2:
@@ -42,6 +51,15 @@ def DsseCall(system, zdata, Ymatrix, Adj):
 	else:
 		Vest = DsseMixed(system, zdata, Ymatrix, Adj)
 		
+	# 3. Populate arrays with data in output of estimator
+	# The Estimator provides:
+	# Vest: Node Voltage phasor estimated 
+	# Iest: Branch Current phasor estimated   
+	# Iinjest: Injection Current phasor estimated 
+	# S1est:  Complex Power flow at branch, measured at initial node
+	# S2est:  Complex Power flow at branch, measured at final node  
+	# Sinjest: Complex Power Injection at node
+
 	nodes_num = len(system.nodes)
 	branches_num = len(system.branches)
 	
@@ -88,52 +106,69 @@ def DsseCall(system, zdata, Ymatrix, Adj):
 def DsseTrad(system, zdata, Ymatrix, Adj):
 	""" It performs state estimation using rectangular node voltage state variables 
 	and it is customized to work without PMU measurements"""
+	# Traditional state estimator
+	# system: model of the system (nodes, lines, topology)
+	# zdata: Vector of measurements in Input (voltages, currents, powers)
+	# Ymatrix: Parameters of the lines (R,X,G,B)
+	# Adj: Adjacency Matrix
 	
-	nodes_num = len(system.nodes)
 	
-	vidx = numpy.where(zdata.mtype==1)
-	pidx = numpy.where(zdata.mtype==2)
-	qidx = numpy.where(zdata.mtype==3)
-	pfidx = numpy.where(zdata.mtype==4)
-	qfidx = numpy.where(zdata.mtype==5)
-	iidx = numpy.where(zdata.mtype==6)
 	
-	nvi = len(vidx[0])
-	npi = len(pidx[0])
-	nqi = len(qidx[0])
-	npf = len(pfidx[0])
-	nqf = len(qfidx[0])
-	nii = len(iidx[0])
+	nodes_num = len(system.nodes) # number of nodes of the grids, identify also the number of states (2*nodes_num-1)
 	
-	busvi = zdata.mfrom[vidx]
-	buspi = zdata.mfrom[pidx]
-	busqi = zdata.mfrom[qidx]
-	fbuspf = zdata.mfrom[pfidx]
-	tbuspf = zdata.mto[pfidx]
-	fbusqf = zdata.mfrom[qfidx]
-	fbusiamp = zdata.mfrom[iidx]
-	tbusiamp = zdata.mto[iidx]
+	vidx = numpy.where(zdata.mtype==1) #voltage input measurement
+	pidx = numpy.where(zdata.mtype==2) #active power input measurement
+	qidx = numpy.where(zdata.mtype==3) #reactive power input measurement
+	pfidx = numpy.where(zdata.mtype==4) #active power flow input measurement
+	qfidx = numpy.where(zdata.mtype==5) #reactive power flow input measurement
+	iidx = numpy.where(zdata.mtype==6) #current flow input measurement
+	
+	nvi = len(vidx[0]) # number v.measure
+	npi = len(pidx[0]) # number power.act.measure
+	nqi = len(qidx[0]) # number power.react.measure
+	npf = len(pfidx[0]) # number power.act.flow.measure
+	nqf = len(qfidx[0]) # number power.react.flow.measure
+	nii = len(iidx[0]) #number c.flow.measure
+	
+	busvi = zdata.mfrom[vidx] #node where v.measure is taken
+	buspi = zdata.mfrom[pidx] #node where power.act.measure is taken
+	busqi = zdata.mfrom[qidx] #node where power.react.measure is taken
+	fbuspf = zdata.mfrom[pfidx] #node from where power.act.measure starts
+	tbuspf = zdata.mto[pfidx] #node to where power.act.measure goes
+	fbusqf = zdata.mfrom[qfidx] #node from where power.react.measure starts
+	#tbusqf = zdata.mto[qfidx] #should be added [aan] ? #node to where power.react.measure goes
+	fbusiamp = zdata.mfrom[iidx] #node from where current.flow.measure starts
+	tbusiamp = zdata.mto[iidx] #node to where current.flow.measure goes
 	   
-	z = zdata.mval
+	z = zdata.mval #values of measurements are stored in array z
 	
-	Pinj = z[pidx]
+	#extrapolate different types of measurements
+	Pinj = z[pidx] 
 	Qinj = z[qidx]
 	Pbr = z[pfidx]
 	Qbr = z[qfidx]
 	
-	idx = numpy.where(zdata.mstddev<10**(-6))
+	# zero injection measurements
+	# the weight is small and can bring instability during matrix inversion, so we "cut" everything below 10^-6
+	idx = numpy.where(zdata.mstddev<10**(-6)) 
 	zdata.mstddev[idx] = 10**(-6)
+	
+	# weights matrix is obtained as stdandard_deviations^-2
 	weights = zdata.mstddev**(-2)
 	W = numpy.diag(weights)
 	
+	# Admittances of the lines of the network
 	Admittance = Complex_to_all(Ymatrix)
 	Gmatrix = Admittance.real
 	Bmatrix = Admittance.imag
 	Yabs_matrix = Admittance.mag
 	Yphase_matrix = Admittance.phase
-		
+	
+	# Jacobian Matrix. Includes the derivatives of the measurements (voltages, currents, powers) with respect to the states (voltages)
+	
 	""" Jacobian for Power Injection Measurements (converted to equivalent 
 	rectangualar current measurements) """
+	# Derivative of power injection(converted to current injection) with respect to voltage: it is the admittance. 
 	H2 = numpy.zeros((npi,2*nodes_num-1))
 	H3 = numpy.zeros((nqi,2*nodes_num-1))
 	for i in range(npi):
@@ -155,6 +190,7 @@ def DsseTrad(system, zdata, Ymatrix, Adj):
 		
 	""" Jacobian for branch Power Measurements (converted to equivalent 
 	rectangualar current measurements)"""
+	# Derivative of branch power flow(converted to current flow) with respect to voltage: it is the admittance. 
 	H4 = numpy.zeros((npf,2*nodes_num-1))
 	H5 = numpy.zeros((nqf,2*nodes_num-1))
 	for i in range(npf):
@@ -173,18 +209,20 @@ def DsseTrad(system, zdata, Ymatrix, Adj):
 			H4[i][n2] = - Bmatrix[m][n]
 			H5[i][n2] = Gmatrix[m][n]
 		
-	epsilon = 5
-	Vr = numpy.ones(nodes_num)
-	Vx = numpy.zeros(nodes_num)
+	epsilon = 5 # treshold to stop Netwon Rapson iterations
+	Vr = numpy.ones(nodes_num) #initialize voltage real part to 1 per unit
+	Vx = numpy.zeros(nodes_num) #initialize voltage imaginary part to 0 per unit
 	V = Real_to_all(Vr, Vx)
-	num_iter = 0
+	num_iter = 0 # number of iterations of Newton Rapson
 	
-	StateVr = numpy.ones(nodes_num)
-	StateVx = numpy.zeros(nodes_num-1)
+	StateVr = numpy.ones(nodes_num) #initialize voltage real part to 1 per unit
+	StateVx = numpy.zeros(nodes_num-1) #initialize voltage imaginary part to 0 per unit
 	State = numpy.concatenate((StateVr,StateVx),axis=0)
 	
+	# Iteration of Netwon Rapson method: needed to solve non-linear system of equation
 	while epsilon>10**(-6):
 		""" Computation of equivalent current measurements in place of the power measurements """
+		# in every iteration the input power measurements are converted into currents by dividing by the voltage estimated at the previous iteration
 		Irinj = (Pinj*V.real[buspi-1] + Qinj*V.imag[busqi-1])/(V.mag[buspi-1]**2)
 		Ixinj = (Pinj*V.imag[buspi-1] - Qinj*V.real[busqi-1])/(V.mag[buspi-1]**2)
 		z[pidx] = Irinj
@@ -196,7 +234,9 @@ def DsseTrad(system, zdata, Ymatrix, Adj):
 		z[qfidx] = Ixbr
 		
 		""" Voltage Magnitude Measurements """
+		# at every iteration we update h(x) vector where V measure are available
 		h1 = V.mag[busvi-1]
+		# the Jacobian rows where voltage measurements are presents is updated
 		H1 = numpy.zeros((nvi,2*nodes_num-1))
 		for i in range(nvi):
 			m = busvi[i]-1
@@ -206,14 +246,17 @@ def DsseTrad(system, zdata, Ymatrix, Adj):
 				H1[i][m2] = numpy.sin(V.phase[m])
 				
 		""" Power Injection Measurements """
+		# h(x) vector where power injections are present
 		h2 = numpy.inner(H2,State)
 		h3 = numpy.inner(H3,State)
 		
 		""" Power Flow Measurements """
+		# h(x) vector where power flows are present
 		h4 = numpy.inner(H4,State)
 		h5 = numpy.inner(H5,State)
 		
 		""" Current Magnitude Measurements """
+		# h(x) vector where current flows are present
 		h6re = numpy.zeros((nii))
 		h6im = numpy.zeros((nii))
 		h6complex = numpy.zeros((nii),dtype=complex)
@@ -237,19 +280,26 @@ def DsseTrad(system, zdata, Ymatrix, Adj):
 				H6[i][n2] = Yabs_matrix[m][n]*(numpy.cos(Yphase_matrix[m][n])*h6im[i] - numpy.sin(Yphase_matrix[m][n])*h6re[i])/h6[i]
 		
 		""" WLS computation """
+		# all the sub-matrixes of H calcualted so far are merged in a unique matrix
 		H = numpy.concatenate((H1,H2,H3,H4,H5,H6),axis=0)
+		# h(x) sub-vectors are concatenated
 		y = numpy.concatenate((h1,h2,h3,h4,h5,h6),axis=0)
+		# "res" is the residual vector. The difference between input measurements and h(x)
 		res = numpy.subtract(z,y)
+		# g = transpose(H) * W * res
 		g = numpy.inner(H.transpose(),numpy.inner(W,res))
 		WH = numpy.inner(W,H.transpose())
+		# G is the gain matrix, that will have to be inverted at each iteration
 		G = numpy.inner(H.transpose(),WH.transpose())
-
+		# inversion of G
 		Ginv = numpy.linalg.inv(G)
+		# Delta includes the updates of the states for the current Newton Rapson iteration
 		Delta_State = numpy.inner(Ginv,g)
-		
+		# state is updated
 		State = State + Delta_State
+		# calculate the NR treeshold (for the next while check)
 		epsilon = numpy.amax(numpy.absolute(Delta_State))
-		
+		# update the voltages 
 		V.real = State[:nodes_num]
 		V.imag = State[nodes_num:]
 		V.imag = numpy.concatenate(([0],V.imag), axis=0)
