@@ -36,6 +36,8 @@ class System():
 		self.bX=[]
 		self.P=[]
 		self.Q=[]
+		self.Ymatrix = np.zeros((1, 1),dtype=np.complex)
+		self.Adjacencies = np.array([])
 
 	def load_cim_data(self, res):
 		#this function is used to fill the vectors node, branch, bR, bX, P and Q
@@ -52,8 +54,6 @@ class System():
 					length=1.0
 				self.bR.append(value.r*length)
 				self.bX.append(value.x*length)
-				#startNode=res[value.startNodeID]
-				#endNode=res[value.endNodeID]
 				for i in range(len(self.nodes)):
 					if value.startNodeID==self.nodes[i].uuid:
 						startNode=self.nodes[i]
@@ -66,8 +66,6 @@ class System():
 			elif value.__class__.__name__=="PowerTransformer":
 				self.bR.append(value.primaryConnection.r)
 				self.bX.append(value.primaryConnection.x)
-				#startNode=res[value.startNodeID]
-				#endNode=res[value.endNodeID]
 				for i in range(len(self.nodes)):
 					if value.startNodeID==self.nodes[i].uuid:
 						startNode=self.nodes[i]
@@ -79,7 +77,22 @@ class System():
 				self.branches.append(Branch(value.primaryConnection.r, value.primaryConnection.x, startNode, endNode))
 			else:
 				continue
+		self.Ymatrix_calc()
 
+	def Ymatrix_calc(self):
+		nodes_num = len(self.nodes)
+		branches_num = len(self.branches)
+		self.Ymatrix = np.zeros((nodes_num, nodes_num),dtype=np.complex)
+		self.Adjacencies = [[] for _ in range(nodes_num)]
+		for branch in self.branches:
+			fr = branch.start_node.index
+			to = branch.end_node.index
+			self.Ymatrix[fr][to] -= branch.y
+			self.Ymatrix[to][fr] -= branch.y
+			self.Ymatrix[fr][fr] += branch.y
+			self.Ymatrix[to][to] += branch.y
+			self.Adjacencies[fr].append(to+1)	#to + 1???
+			self.Adjacencies[to].append(fr+1)	#fr + 1???
 
 def load_python_data(nodes, branches, type):
 	system = System()
@@ -93,7 +106,8 @@ def load_python_data(nodes, branches, type):
 	for branch_idx in range(0, branches.num):
 		system.branches.append(Branch(branches.R[branch_idx], branches.X[branch_idx], 
 		system.nodes[branches.start[branch_idx]-1], system.nodes[branches.end[branch_idx]-1]))
-
+	
+	system.Ymatrix_calc()
 	return system
 	
 def Ymatrix_calc(system):

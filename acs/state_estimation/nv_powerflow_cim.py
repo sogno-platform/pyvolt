@@ -5,7 +5,7 @@ from network import Ymatrix_calc
 from network import BusType
 
 sys.path.append("../../../dataprocessing")
-from dpsim_reader import read_data
+from villas.dataprocessing.readtools import read_timeseries_dpsim
 
 class PF_Results():
 	def __init__(self):
@@ -41,10 +41,104 @@ class PowerflowBranch():
 		self.power = complex(0, 0)
 
 class PowerflowResults():	
-	def __init__(self):
+	def __init__(self, system):
 		self.nodes=[]
 		self.branches=[]
+		self.Ymatrix=system.Ymatrix
+		self.Adjacencies=system.Adjacencies
+		for node in system.nodes:
+			self.nodes.append(PowerflowNode(topo_node=node))
+		for branch in system.branches:
+			self.branches.append(PowerflowBranch(topo_branch=branch))
+			
+	def read_data(self, file_name):
+		"""
+		read the voltages from a input file
+		"""
+		loadflow_results = read_data(loadflow_results_file)
+		for elem in range(len(self.nodes)): 
+			elem.V = loadflow_results[elem.topology_node.uuid]
 
+	def load_voltages(self, V):
+		"""
+		load the voltages of V-array (result of powerflow_cim.solve)
+		"""
+		for index in range(len(V)):
+			for elem in self.nodes:
+				if elem.topology_node.index == index:
+					elem.voltage = V[index]
+					
+	def calculateI(self):
+		"""
+		To calculate the branch currents
+		"""	
+		for branch in self.branches:
+			fr = branch.topology_branch.start_node.index
+			to = branch.topology_branch.end_node.index
+			branch.current = - (self.nodes[fr].voltage - self.nodes[to].voltage)*self.Ymatrix[fr][to]
+	
+	def calculateIinj(self):
+		"""
+		calculate current injections at a node
+		"""
+		for node in self.nodes:
+			to=complex(0, 0)	#sum of the currents flowing to the node
+			fr=complex(0, 0)	#sum of the currents flowing from the node
+			for branch in self.branches:
+				if node.topology_node.index==branch.topology_branch.start_node.index:
+					fr = fr + branch.current
+				if node.topology_node.index==branch.topology_branch.end_node.index:
+					to = to + branch.current
+			node.current = to - fr
+	
+	def calculateSinj(self):
+		"""
+		calculate power injection at a node
+		"""
+		for node in self.nodes:
+			node.power = node.voltage*np.conj(node.current)
+	
+	def get_voltages(self):
+		"""
+		get node voltages 
+		for a test purpose
+		"""
+		voltages = np.zeros(len(self.nodes), dtype=np.complex_)
+		for node in self.nodes:
+			voltages[node.topology_node.index] = node.voltage
+		return voltages
+	
+	def get_Iinj(self):
+		"""
+		get node currents 
+		for a test purpose
+		"""
+		Iinj = np.zeros(len(self.nodes), dtype=np.complex_)
+		for node in self.nodes:
+			Iinj[node.topology_node.index] = node.current
+		return Iinj
+		
+	def get_Sinj(self):
+		"""
+		get node power 
+		for a test purpose
+		"""
+		Sinj = np.zeros(len(self.nodes), dtype=np.complex_)
+		for node in self.nodes:
+			Sinj[node.topology_node.index] = node.power
+		return Sinj
+		
+	
+	def getI(self):
+		"""
+		get branch currents 
+		for a test purpose
+		"""
+		currents = np.zeros(len(self.branches), dtype=np.complex_)
+		for elem in self.branches:
+			voltages[elem.topology_node.index] = elem.voltage
+		return voltages
+		
 def solve(system):
 	"""It performs Power Flow by using rectangular node voltage state variables."""
 	

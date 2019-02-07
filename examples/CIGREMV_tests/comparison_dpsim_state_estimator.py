@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 sys.path.append("../../../cimpy")
 import cimpy
 
-sys.path.append("./acs/state_estimation")
+sys.path.append("../../acs/state_estimation")
 import network
 import nv_powerflow_cim
 from measurement_generator import *
