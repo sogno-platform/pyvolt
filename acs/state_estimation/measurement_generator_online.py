@@ -71,7 +71,7 @@ def Zdata_structure_creation(data, system):
     Ipmu_phase = Measurements(Ipmu_idx,Ipmu_phase_unc)
     Vpmu_mag = Measurements(Vpmu_idx,Vpmu_mag_unc)
     Vpmu_phase = Measurements(Vpmu_idx,Vpmu_phase_unc)
-    meas = Measurement_set(V, I, Pinj, P1, P2, Qinj, Q1, Q2, Ipmu_mag, Ipmu_phase, Vpmu_mag, Vpmu_phase)
+    meas = Measurement_set(V, I, Pinj, P1, P2, Qinj, Q1, Q2, Vpmu_mag, Vpmu_phase, Ipmu_mag, Ipmu_phase)
 
     zdatameas = Zdata_init(meas)
     zdatameas = Zdatatrue_creation(zdatameas, meas, system)
@@ -194,9 +194,10 @@ def Zdatameas_creation_fromPF(data, zdatameas, values):
     import numpy as np
     
     num_data = len(values)
-    index = np.linspace(0,num_data-2,num_data/2)
-    Vmag = values[index]
-    Vtheta = values[index+1]
+    index = np.linspace(0,num_data-2,int(num_data/2)).astype(int)
+    
+    Vmag = [values[i] for i in index]
+    Vtheta = [values[i] for i in index + 1]
     Pinj = [];
     Qinj = [];
     P1 = [];
@@ -206,26 +207,26 @@ def Zdatameas_creation_fromPF(data, zdatameas, values):
     Imag = [];
     Itheta = [];
     
-    z1 = Vmag(data["Measurement"]["Vmag"]["idx"])
-    z2 = Pinj(data["Measurement"]["Pinj"]["idx"])
-    z3 = Qinj(data["Measurement"]["Qinj"]["idx"])
-    z4_1 = P1(data["Measurement"]["P1"]["idx"])
-    z4_2 = P2(data["Measurement"]["P2"]["idx"])
-    z5_1 = Q1(data["Measurement"]["Q1"]["idx"])
-    z5_2 = Q2(data["Measurement"]["Q2"]["idx"])
-    z6 = Imag(data["Measurement"]["I"]["idx"])
-    z7 = Vmag(data["Measurement"]["Vpmu"]["idx"])
-    z8 = Vtheta(data["Measurement"]["Vpmu"]["idx"])
-    z9 = Imag(data["Measurement"]["Ipmu"]["idx"])
-    z10 = Itheta(data["Measurement"]["Ipmu"]["idx"])
+    z1 = [Vmag[i-1] for i in data["Measurement"]["Vmag"]["idx"]]
+    z2 = [Pinj[i-1] for i in data["Measurement"]["Pinj"]["idx"]]
+    z3 = [Qinj[i-1] for i in data["Measurement"]["Qinj"]["idx"]]
+    z4_1 = [P1[i-1] for i in data["Measurement"]["P1"]["idx"]]
+    z4_2 = [P2[i-1] for i in data["Measurement"]["P2"]["idx"]]
+    z5_1 = [Q1[i-1] for i in data["Measurement"]["Q1"]["idx"]]
+    z5_2 = [Q2[i-1] for i in data["Measurement"]["Q2"]["idx"]]
+    z6 = [Imag[i-1] for i in data["Measurement"]["Imag"]["idx"]]
+    z7 = [Vmag[i-1] for i in data["Measurement"]["Vpmu"]["idx"]]
+    z8 = [Vtheta[i-1] for i in data["Measurement"]["Vpmu"]["idx"]]
+    z9 = [Imag[i-1] for i in data["Measurement"]["Ipmu"]["idx"]]
+    z10 = [Itheta[i-1] for i in data["Measurement"]["Ipmu"]["idx"]]
     
     zmeas = np.concatenate((z1,z2,z3,z4_1,z4_2,z5_1,z5_2,z6,z7,z8,z9,z10),axis=0)
     zdatameas.mval = zmeas
     zdev = np.multiply(zmeas,zdatameas.mstddev)
     vthetaidx = np.where(zdatameas.mtype==8)
     ithetaidx = np.where(zdatameas.mtype==10)
-    zdev[vthetaidx] = zdatameas.stddev[vthetaidx]
-    zdev[ithetaidx] = zdatameas.stddev[ithetaidx]
+    zdev[vthetaidx] = zdatameas.mstddev[vthetaidx]
+    zdev[ithetaidx] = zdatameas.mstddev[ithetaidx]
     err_pu = np.random.normal(0,1,len(zmeas))
     zdatameas.mval = zmeas + np.multiply(zdev,err_pu)
     
