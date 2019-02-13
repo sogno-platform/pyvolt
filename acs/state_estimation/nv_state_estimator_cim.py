@@ -1,55 +1,65 @@
+import sys
 import numpy
 
-class Real_to_all:
-	def __init__(self,Ar,Ax):
-		""" Converts real and imaginary parts to all the other formats. """
-		self.real = Ar
-		self.imag = Ax
-		self.complex = Ar + 1j*Ax
-		self.mag = numpy.absolute(self.complex)
-		self.phase = numpy.angle(self.complex)
+sys.path.append("../../../dataprocessing")
+from villas.dataprocessing.readtools import read_timeseries_dpsim
+
+class Measurement():
+	def __init__(self, topo_node, meas_type, meas_value, std_dev):
+		"""
+		Creates a measurement, which is used by the estimation module. Possible types of measurements are: v, p, q, i, Vpmu and Ipmu
+		@meas_type: "p" for active power, "q" for reactive power, "v" for voltage, "i" for electrical current, "Vpmu" and "Ipmu"
+		@node_uuid: 
+		@meas_value: measurement value.
+		@std_dev: standard deviation in the same unit as the measurement.
+		"""
 		
-class Complex_to_all:
-	def __init__(self,Arx):
-		""" Converts complex numbers to all the other formats. """
-		self.complex = Arx
-		self.real = numpy.real(self.complex)
-		self.imag = numpy.imag(self.complex)	  
-		self.mag = numpy.absolute(self.complex)
-		self.phase = numpy.angle(self.complex)
+		if meas_type not in ("v", "Vpmu", "p", "q", "i", "Ipmu"):
+			raise Exception("Invalid measurement type (%s)" % meas_type)
 			
-def DsseCall(system, zdata, Ymatrix, Adj):
+		self.topology_node = topo_node
+		self.meas_type = meas_type
+		self.meas_value = meas_value
+		self.std_dev = self.meas_value*(std_dev/300)
+
+class Measurents_set():
+	def __init__(self):
+		self.measurements_set = []
+		
+	def create_measurement(self, topo_node, meas_type, meas_value, std_dev):
+		self.measurements_set.append(Measurement(topo_node, meas_type, meas_value, std_dev))
+	
+def DsseCall(system, zdata, measurements):
 	""" It identifies the type of measurements present in the measurement set and 
 	calls the appropriate estimator for dealing with them."""
 	# system: model of the system (nodes, lines, topology)
 	# zdata: Vector of measurements in Input (voltages, currents, powers)
-	# Ymatrix: Parameters of the lines (R,X,G,B)
-	# Adj: Adjacency Matrix
 
 	# 1. Select type of Estimator.
 	# If at least a PMU is present we launch the combined estimator, otherwise a simple traditional etimator 
 
-	trad_code = 0
-	PMU_code = 0
-
-	Vmag_meas = numpy.where(zdata.mtype==1) #Voltage Magnitude measurement: type 1
-	if len(Vmag_meas[0])>0:
-		trad_code = 1
-		
-	Vpmu_meas = numpy.where(zdata.mtype==7) #Voltage Phasor (Magnitude+Phase) measurement: type 7
-	if len(Vpmu_meas[0])>0:
-		PMU_code = 2
-		
+	Vmag_meas = 0
+	Vpmu_meas = 0
+	for elem in measurements.measurements_set:
+		if elem.meas_type=="v":
+			Vmag_meas = Vmag_meas + 1
+		elif elem.meas_type=="Vpmu":
+			Vpmu_meas = Vpmu_meas + 1
+	
+	trad_code = 1 if Vmag_meas >0 else 0
+	PMU_code = 2 if Vpmu_meas >0 else 0
+	print(trad_code)
+	print(PMU_code)
 	est_code = trad_code + PMU_code
 		
 	# 2. Run Estimator.
 
 	if est_code == 1:
-		Vest = DsseTrad(system, zdata, Ymatrix, Adj)
+		Vest = DsseTrad(system, zdata)
 	elif est_code == 2:
-		Vest = DssePmu(system, zdata, Ymatrix, Adj)
+		Vest = DssePmu(system, zdata)
 	else:
-		Vest = DsseMixed(system, zdata, Ymatrix, Adj)
+		Vest = DsseMixed(system, zdata)
 		
 	# 3. Populate arrays with data in output of estimator
 	# The Estimator provides:
@@ -64,15 +74,15 @@ def DsseCall(system, zdata, Ymatrix, Adj):
 	branches_num = len(system.branches)
 	
 	""" From here on, all the other quantities of the grid are calculated """
-	Irx = numpy.zeros(branches_num, dtype=numpy.complex)
+	Iest = numpy.zeros(branches_num, dtype=numpy.complex)
 	for index in range(branches_num):
 		fr = system.branches[index].start_node.index #branch.start[idx]-1
 		to = system.branches[index].end_node.index   #branch.end[idx]-1
-		Irx[index] = - (Vest.complex[fr] - Vest.complex[to])*Ymatrix[fr][to]
+		Irx[index] = - (Vest.complex[fr] - Vest.complex[to])*system.Ymatrix[fr][to]
 	Ir = numpy.real(Irx)
 	Ix = numpy.imag(Irx)
 	
-	Iest = Real_to_all(Ir,Ix)
+	#Iest = Real_to_all(Ir,Ix)
 	Iinj_r = numpy.zeros(nodes_num)
 	Iinj_x = numpy.zeros(nodes_num)
 	for k in range(nodes_num):
@@ -84,35 +94,31 @@ def DsseCall(system, zdata, Ymatrix, Adj):
 			if k==system.branches[m].end_node.index:
 				to.append(m)
 		
-		Iinj_r[k] = numpy.sum(Iest.real[to]) - numpy.sum(Iest.real[fr])
-		Iinj_x[k] = numpy.sum(Iest.imag[to]) - numpy.sum(Iest.imag[fr])
+		Iinj_r[k] = numpy.sum(Iest[to].real) - numpy.sum(Iest[fr].real)
+		Iinj_x[k] = numpy.sum(Iest[to].imag) - numpy.sum(Iest[fr].imag)
 		
-	Iinjest = Real_to_all(Iinj_r,Iinj_x)
-	Sinj_rx = numpy.multiply(Vest.complex,numpy.conj(Iinjest.complex))
-	Sinjest = Real_to_all(numpy.real(Sinj_rx),numpy.imag(Sinj_rx))
+	#Iinjest = Real_to_all(Iinj_r,Iinj_x)
+	Iinjest = Iinj_r + 1j*Iinj_x
+	Sinjest = numpy.multiply(Vest.complex,numpy.conj(Iinjest.complex))
+	#Sinjest = Real_to_all(numpy.real(Sinj_rx),numpy.imag(Sinj_rx))
 	
-	S1_rx=numpy.array([])
-	S2_rx=numpy.array([])
+	S1est=numpy.array([])
+	S2est=numpy.array([])
 	for i in range(branches_num):
-		S1_rx=numpy.append(S1_rx, Vest.complex[system.branches[i].start_node.index]*numpy.conj(Iest.complex[i]))
-		S2_rx=numpy.append(S2_rx, -Vest.complex[system.branches[i].end_node.index]*numpy.conj(Iest.complex[i]))
+		S1est=numpy.append(S1_rx, Vest.complex[system.branches[i].start_node.index]*numpy.conj(Iest[i]))
+		S2est=numpy.append(S2_rx, -Vest.complex[system.branches[i].end_node.index]*numpy.conj(Iest[i]))
 		
-	S1est = Real_to_all(numpy.real(S1_rx),numpy.imag(S1_rx))
-	S2est = Real_to_all(numpy.real(S2_rx),numpy.imag(S2_rx))
+	#S1est = Real_to_all(numpy.real(S1_rx),numpy.imag(S1_rx))
+	#S2est = Real_to_all(numpy.real(S2_rx),numpy.imag(S2_rx))
 		
 	return Vest, Iest, Iinjest, S1est, S2est, Sinjest
 
-
-def DsseTrad(system, zdata, Ymatrix, Adj):
+def DsseTrad(system, zdata):
 	""" It performs state estimation using rectangular node voltage state variables 
 	and it is customized to work without PMU measurements"""
 	# Traditional state estimator
 	# system: model of the system (nodes, lines, topology)
-	# zdata: Vector of measurements in Input (voltages, currents, powers)
-	# Ymatrix: Parameters of the lines (R,X,G,B)
-	# Adj: Adjacency Matrix
-	
-	
+	# zdata: Vector of measurements in Input (voltages, currents, powers)	
 	
 	nodes_num = len(system.nodes) # number of nodes of the grids, identify also the number of states (2*nodes_num-1)
 	
@@ -158,11 +164,10 @@ def DsseTrad(system, zdata, Ymatrix, Adj):
 	W = numpy.diag(weights)
 	
 	# Admittances of the lines of the network
-	Admittance = Complex_to_all(Ymatrix)
-	Gmatrix = Admittance.real
-	Bmatrix = Admittance.imag
-	Yabs_matrix = Admittance.mag
-	Yphase_matrix = Admittance.phase
+	Gmatrix = system.Ymatrix.real
+	Bmatrix = system.Ymatrix.imag
+	Yabs_matrix = numpy.absolute(system.Ymatrix)
+	Yphase_matrix = numpy.angle(system.Ymatrix)
 	
 	# Jacobian Matrix. Includes the derivatives of the measurements (voltages, currents, powers) with respect to the states (voltages)
 	
@@ -178,7 +183,7 @@ def DsseTrad(system, zdata, Ymatrix, Adj):
 		H2[i][m2] = Bmatrix[m][m]
 		H3[i][m] = - Bmatrix[m][m]
 		H3[i][m2] = - Gmatrix[m][m]
-		idx = numpy.subtract(Adj[m],1)
+		idx = numpy.subtract(system.Adj[m],1)
 		H2[i][idx] = - Gmatrix[m][idx]
 		H3[i][idx] = - Bmatrix[m][idx]
 		if 0 in idx:
@@ -212,7 +217,7 @@ def DsseTrad(system, zdata, Ymatrix, Adj):
 	epsilon = 5 # treshold to stop Netwon Rapson iterations
 	Vr = numpy.ones(nodes_num) #initialize voltage real part to 1 per unit
 	Vx = numpy.zeros(nodes_num) #initialize voltage imaginary part to 0 per unit
-	V = Real_to_all(Vr, Vx)
+	V = Vr + 1j*Vx
 	num_iter = 0 # number of iterations of Newton Rapson
 	
 	StateVr = numpy.ones(nodes_num) #initialize voltage real part to 1 per unit
@@ -223,27 +228,27 @@ def DsseTrad(system, zdata, Ymatrix, Adj):
 	while epsilon>10**(-6):
 		""" Computation of equivalent current measurements in place of the power measurements """
 		# in every iteration the input power measurements are converted into currents by dividing by the voltage estimated at the previous iteration
-		Irinj = (Pinj*V.real[buspi-1] + Qinj*V.imag[busqi-1])/(V.mag[buspi-1]**2)
-		Ixinj = (Pinj*V.imag[buspi-1] - Qinj*V.real[busqi-1])/(V.mag[buspi-1]**2)
+		Irinj = (Pinj*V[buspi-1].real + Qinj*V[busqi-1].imag)/(numpy.absolute(V[buspi-1])**2)
+		Ixinj = (Pinj*V[buspi-1].imag - Qinj*V[busqi-1].real)/(numpy.absolute(V[buspi-1])**2)
 		z[pidx] = Irinj
 		z[qidx] = Ixinj
 		
-		Irbr = (Pbr*V.real[fbuspf-1] + Qbr*V.imag[fbusqf-1])/(V.mag[fbuspf-1]**2)
-		Ixbr = (Pbr*V.imag[fbuspf-1] - Qbr*V.real[fbusqf-1])/(V.mag[fbuspf-1]**2)
+		Irbr = (Pbr*V[fbuspf-1].real + Qbr*V[fbusqf-1].imag)/(numpy.absolute(V[fbuspf-1])**2)
+		Ixbr = (Pbr*V[fbuspf-1].imag - Qbr*V[fbusqf-1].real)/(numpy.absolute(V[fbuspf-1])**2)
 		z[pfidx] = Irbr
 		z[qfidx] = Ixbr
 		
 		""" Voltage Magnitude Measurements """
 		# at every iteration we update h(x) vector where V measure are available
-		h1 = V.mag[busvi-1]
+		h1 = V[busvi-1].mag[busvi-1]
 		# the Jacobian rows where voltage measurements are presents is updated
 		H1 = numpy.zeros((nvi,2*nodes_num-1))
 		for i in range(nvi):
 			m = busvi[i]-1
-			H1[i][m] = numpy.cos(V.phase[m])
+			H1[i][m] = numpy.cos(numpy.angle(V[m]))
 			if m > 0:
 				m2 = m + nodes_num-1
-				H1[i][m2] = numpy.sin(V.phase[m])
+				H1[i][m2] = numpy.sin(numpy.angle(V[m]))
 				
 		""" Power Injection Measurements """
 		# h(x) vector where power injections are present
@@ -265,8 +270,8 @@ def DsseTrad(system, zdata, Ymatrix, Adj):
 		for i in range(nii):
 			m = fbusiamp[i]-1
 			n = tbusiamp[i]-1
-			h6re[i] = Yabs_matrix[m][n]*((V.real[n]-V.real[m])*numpy.cos(Yphase_matrix[m][n]) + (V.imag[m]-V.imag[n])*numpy.sin(Yphase_matrix[m][n]))
-			h6im[i] = Yabs_matrix[m][n]*((V.real[n]-V.real[m])*numpy.sin(Yphase_matrix[m][n]) + (V.imag[n]-V.imag[m])*numpy.cos(Yphase_matrix[m][n]))
+			h6re[i] = Yabs_matrix[m][n]*((V[n].real-V[m].real)*numpy.cos(Yphase_matrix[m][n]) + (V[m].imag-V[n].imag)*numpy.sin(Yphase_matrix[m][n]))
+			h6im[i] = Yabs_matrix[m][n]*((V[n].real-V[m].real)*numpy.sin(Yphase_matrix[m][n]) + (V[n].imag-V[m].imag)*numpy.cos(Yphase_matrix[m][n]))
 			h6complex[i] = h6re[i] + 1j*h6im[i]
 			if num_iter>0:
 				h6[i] = numpy.absolute(h6complex[i])
@@ -303,15 +308,13 @@ def DsseTrad(system, zdata, Ymatrix, Adj):
 		V.real = State[:nodes_num]
 		V.imag = State[nodes_num:]
 		V.imag = numpy.concatenate(([0],V.imag), axis=0)
-		V = Real_to_all(V.real, V.imag)
+		#V = Real_to_all(V.real, V.imag)
 		
 		num_iter = num_iter+1
 	
 	return V
 
-
-
-def DssePmu(system, zdata, Ymatrix, Adj):
+def DssePmu(system, zdata):
 	""" It performs state estimation using rectangular node voltage state variables 
 	and it is customized to work using PMU measurements."""
 	
@@ -354,10 +357,9 @@ def DssePmu(system, zdata, Ymatrix, Adj):
 	weights = zdata.mstddev**(-2)
 	W = numpy.diag(weights)
 	
-	Admittance = Complex_to_all(Ymatrix)
-	Gmatrix = Admittance.real
-	Bmatrix = Admittance.imag
-		
+	Gmatrix = system.Ymatrix.real
+	Bmatrix = system.Ymatrix.imag
+	
 	""" Jacobian for Power Injection Measurements (converted to equivalent 
 	rectangualar current measurements) """
 	H2 = numpy.zeros((npi,2*nodes_num))
@@ -369,7 +371,7 @@ def DssePmu(system, zdata, Ymatrix, Adj):
 		H2[i][m2] = Bmatrix[m][m]
 		H3[i][m] = - Bmatrix[m][m]
 		H3[i][m2] = - Gmatrix[m][m]
-		idx = numpy.subtract(Adj[m],1)
+		idx = numpy.subtract(system.Adj[m],1)
 		H2[i][idx] = - Gmatrix[m][idx]
 		H3[i][idx] = - Bmatrix[m][idx]
 		idx2 = idx + nodes_num
@@ -449,7 +451,7 @@ def DssePmu(system, zdata, Ymatrix, Adj):
 	epsilon = 5
 	Vr = numpy.ones(nodes_num)
 	Vx = numpy.zeros(nodes_num)
-	V = Real_to_all(Vr, Vx)
+	V = Vr + 1j*Vx
 	num_iter = 0
 	
 	StateVr = numpy.ones(nodes_num)
@@ -461,16 +463,15 @@ def DssePmu(system, zdata, Ymatrix, Adj):
 	G = numpy.inner(H.transpose(),WH.transpose())
 	Ginv = numpy.linalg.inv(G)
 	
-	
 	while epsilon>10**(-6):
 		""" Computation of equivalent current measurements in place of the power measurements """
-		Irinj = (Pinj*V.real[buspi-1] + Qinj*V.imag[busqi-1])/(V.mag[buspi-1]**2)
-		Ixinj = (Pinj*V.imag[buspi-1] - Qinj*V.real[busqi-1])/(V.mag[buspi-1]**2)
+		Irinj = (Pinj*V[buspi-1].real + Qinj*V[busqi-1].imag)/(numpy.absolute(V[buspi-1])**2)
+		Ixinj = (Pinj*V[buspi-1].imag - Qinj*V[busqi-1].real)/(numpy.absolute(V[buspi-1])**2)
 		z[pidx] = Irinj
 		z[qidx] = Ixinj
 		
-		Irbr = (Pbr*V.real[fbuspf-1] + Qbr*V.imag[fbusqf-1])/(V.mag[fbuspf-1]**2)
-		Ixbr = (Pbr*V.imag[fbuspf-1] - Qbr*V.real[fbusqf-1])/(V.mag[fbuspf-1]**2)
+		Irbr = (Pbr*V[fbuspf-1].real + Qbr*V[fbusqf-1].imag)/(numpy.absolute(V[fbuspf-1])**2)
+		Ixbr = (Pbr*V[fbuspf-1].imag - Qbr*V[fbusqf-1].real)/(numpy.absolute(V[fbuspf-1])**2)
 		z[pfidx] = Irbr
 		z[qfidx] = Ixbr
 		
@@ -487,15 +488,12 @@ def DssePmu(system, zdata, Ymatrix, Adj):
 		
 		V.real = State[:nodes_num]
 		V.imag = State[nodes_num:]
-		V = Real_to_all(V.real, V.imag)
 		
 		num_iter = num_iter+1
 		
 	return V
 	
-	
-
-def DsseMixed(system, zdata, Ymatrix, Adj):
+def DsseMixed(system, zdata):
 	""" It performs state estimation using rectangular node voltage state variables
 	and it is built to work in scenarios where both conventional and PMU measurements 
 	are simultaneously present."""
@@ -544,11 +542,10 @@ def DsseMixed(system, zdata, Ymatrix, Adj):
 	weights = zdata.mstddev**(-2)
 	W = numpy.diag(weights)
 	
-	Admittance = Complex_to_all(Ymatrix)
-	Gmatrix = Admittance.real
-	Bmatrix = Admittance.imag
-	Yabs_matrix = Admittance.mag
-	Yphase_matrix = Admittance.phase
+	Gmatrix = system.Ymatrix.real
+	Bmatrix = system.Ymatrix.imag
+	Yabs_matrix = numpy.absolute(system.Ymatrix)
+	Yphase_matrix = numpy.angle(system.Ymatrix)
 		
 	""" Jacobian for Power Injection Measurements (converted to equivalent 
 	rectangualar current measurements) """
@@ -561,7 +558,7 @@ def DsseMixed(system, zdata, Ymatrix, Adj):
 		H2[i][m2] = Bmatrix[m][m]
 		H3[i][m] = - Bmatrix[m][m]
 		H3[i][m2] = - Gmatrix[m][m]
-		idx = numpy.subtract(Adj[m],1)
+		idx = numpy.subtract(system.Adj[m],1)
 		H2[i][idx] = - Gmatrix[m][idx]
 		H3[i][idx] = - Bmatrix[m][idx]
 		idx2 = idx + len(system.nodes)
@@ -641,7 +638,8 @@ def DsseMixed(system, zdata, Ymatrix, Adj):
 	epsilon = 5
 	Vr = numpy.ones(len(system.nodes))
 	Vx = numpy.zeros(len(system.nodes))
-	V = Real_to_all(Vr, Vx)
+	V = Vr + 1j*Vx
+	#V = Real_to_all(Vr, Vx)
 	num_iter = 0
 	
 	StateVr = numpy.ones(len(system.nodes))
@@ -650,24 +648,24 @@ def DsseMixed(system, zdata, Ymatrix, Adj):
 	
 	while epsilon>10**(-6):
 		""" Computation of equivalent current measurements in place of the power measurements """
-		Irinj = (Pinj*V.real[buspi-1] + Qinj*V.imag[busqi-1])/(V.mag[buspi-1]**2)
-		Ixinj = (Pinj*V.imag[buspi-1] - Qinj*V.real[busqi-1])/(V.mag[buspi-1]**2)
+		Irinj = (Pinj*V[buspi-1].real + Qinj*V[busqi-1].imag)/(numpy.absolute(V[buspi-1])**2)
+		Ixinj = (Pinj*V[buspi-1].imag - Qinj*V[busqi-1].real)/(numpy.absolute(V[buspi-1])**2)
 		z[pidx] = Irinj
 		z[qidx] = Ixinj
 		
-		Irbr = (Pbr*V.real[fbuspf-1] + Qbr*V.imag[fbusqf-1])/(V.mag[fbuspf-1]**2)
-		Ixbr = (Pbr*V.imag[fbuspf-1] - Qbr*V.real[fbusqf-1])/(V.mag[fbuspf-1]**2)
+		Irbr = (Pbr*V[fbuspf-1].real + Qbr*V[fbusqf-1].imag)/(numpy.absolute(V[fbuspf-1])**2)
+		Ixbr = (Pbr*V[fbuspf-1].imag - Qbr*V[fbusqf-1].real)/(numpy.absolute(V[fbuspf-1])**2)
 		z[pfidx] = Irbr
 		z[qfidx] = Ixbr
 		
 		""" Voltage Magnitude Measurements """
-		h1 = V.mag[busvi-1]
+		h1 = numpy.absolute(V[busvi-1])
 		H1 = numpy.zeros((nvi,2*len(system.nodes)))
 		for i in range(nvi):
 			m = busvi[i]-1
-			H1[i][m] = numpy.cos(V.phase[m])
+			H1[i][m] = numpy.cos(numpy.angle(V[m]))
 			m2 = m + len(system.nodes)
-			H1[i][m2] = numpy.sin(V.phase[m])
+			H1[i][m2] = numpy.sin(numpy.angle(V[m]))
 				
 		""" Power Injection Measurements """
 		h2 = numpy.inner(H2,State)
@@ -686,8 +684,8 @@ def DsseMixed(system, zdata, Ymatrix, Adj):
 		for i in range(nii):
 			m = fbusiamp[i]-1
 			n = tbusiamp[i]-1
-			h6re[i] = Yabs_matrix[m][n]*((V.real[n]-V.real[m])*numpy.cos(Yphase_matrix[m][n]) + (V.imag[m]-V.imag[n])*numpy.sin(Yphase_matrix[m][n]))
-			h6im[i] = Yabs_matrix[m][n]*((V.real[n]-V.real[m])*numpy.sin(Yphase_matrix[m][n]) + (V.imag[n]-V.imag[m])*numpy.cos(Yphase_matrix[m][n]))
+			h6re[i] = Yabs_matrix[m][n]*((V[n].real-V[m].real)*numpy.cos(Yphase_matrix[m][n]) + (V[m].imag-V[n].imag)*numpy.sin(Yphase_matrix[m][n]))
+			h6im[i] = Yabs_matrix[m][n]*((V[n].real-V[m].real)*numpy.sin(Yphase_matrix[m][n]) + (V[n].imag-V[m].imag)*numpy.cos(Yphase_matrix[m][n]))
 			h6complex[i] = h6re[i] + 1j*h6im[i]
 			if num_iter>0:
 				h6[i] = numpy.absolute(h6complex[i])
@@ -722,7 +720,7 @@ def DsseMixed(system, zdata, Ymatrix, Adj):
 		
 		V.real = State[:len(system.nodes)]
 		V.imag = State[len(system.nodes):]
-		V = Real_to_all(V.real, V.imag)
+		V = Vr + 1j*Vx
 		
 		num_iter = num_iter+1
 	

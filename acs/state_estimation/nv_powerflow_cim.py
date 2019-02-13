@@ -7,26 +7,6 @@ from network import BusType
 sys.path.append("../../../dataprocessing")
 from villas.dataprocessing.readtools import read_timeseries_dpsim
 
-class PF_Results():
-	def __init__(self):
-		self.V = [] #Node Voltage
-		self.I = [] #Branch Current
-		self.Iinj = [] #Injection Current
-		self.S1 = [] #Branch Complex Power measured at 1st node of the line
-		self.S2 = [] #Branch Complex Power measured at 2nd node of the line
-		self.SInj = [] #Complex Power Injection
-		self.num_iter = 0 #Number of Iterations of Newton Rapson
-		
-	def read_data(self, file_name, system):
-		"""
-		To read the voltages from a input file
-		"""
-		loadflow_results = read_data(loadflow_results_file)
-		#order readed data according to system.nodes
-		self.V = np.zeros(len(loadflow_results), dtype=np.complex_)
-		for elem in range(len(system.nodes)): 
-			self.V[elem] = loadflow_results[system.nodes[elem].uuid]
-
 class PowerflowNode():
 	def __init__(self, topo_node):		
 		self.topology_node = topo_node		
@@ -38,8 +18,9 @@ class PowerflowBranch():
 	def __init__(self, topo_branch):
 		self.topology_branch = topo_branch
 		self.current = complex(0, 0)
-		self.power = complex(0, 0)
-
+		self.power = complex(0, 0)			#complex power flow at branch, measured at initial node
+		self.power2 = complex(0, 0)			#complex power flow at branch, measured at final node 
+		
 class PowerflowResults():	
 	def __init__(self, system):
 		self.nodes=[]
@@ -51,13 +32,13 @@ class PowerflowResults():
 		for branch in system.branches:
 			self.branches.append(PowerflowBranch(topo_branch=branch))
 			
-	def read_data(self, file_name):
+	def read_data_dpsim(self, file_name):
 		"""
-		read the voltages from a input file
+		read the voltages from a dpsim input file
 		"""
-		loadflow_results = read_data(loadflow_results_file)
-		for elem in range(len(self.nodes)): 
-			elem.V = loadflow_results[elem.topology_node.uuid]
+		loadflow_results = read_timeseries_dpsim(file_name, print_status=False)
+		for node in self.nodes:
+			node.V = loadflow_results[node.topology_node.uuid].values[0]
 
 	def load_voltages(self, V):
 		"""
@@ -98,9 +79,29 @@ class PowerflowResults():
 		for node in self.nodes:
 			node.power = node.voltage*np.conj(node.current)
 	
+	def calculateS1(self):
+		"""
+		calculate complex power flow at branch, measured at initial node
+		"""
+		for branch in self.branches:
+			branch_index = branch.topology_branch.start_node.index
+			for node in self.nodes:
+				if branch_index == node.topology_node.index:
+					branch.power = node.voltage*(np.conj(branch.current))
+	
+	def calculateS2(self):
+		"""
+		calculate complex ower flow at branch, measured at final node 
+		"""
+		for branch in self.branches:
+			branch_index = branch.topology_branch.end_node.index
+			for node in self.nodes:
+				if branch_index == node.topology_node.index:
+					branch.power2 = -node.voltage*(np.conj(branch.current))
+					
 	def get_voltages(self):
 		"""
-		get node voltages 
+		get complex Power Injection at nodes
 		for a test purpose
 		"""
 		voltages = np.zeros(len(self.nodes), dtype=np.complex_)
@@ -134,15 +135,33 @@ class PowerflowResults():
 		get branch currents 
 		for a test purpose
 		"""
-		currents = np.zeros(len(self.branches), dtype=np.complex_)
-		for elem in self.branches:
-			voltages[elem.topology_node.index] = elem.voltage
-		return voltages
+		I = np.array([])
+		for branch in self.branches:
+			I = np.append(I, branch.current)
+		return I
+		
+	def get_S1(self):
+		"""
+		get complex Power flow at branch, measured at initial node
+		for a test purpose
+		"""
+		S1 = np.array([])
+		for branch in self.branches:
+			S1 = np.append(S, branch.power)
+		return S1
+		
+	def get_S2(self):
+		"""
+		get complex Power flow at branch, measured at final node  
+		for a test purpose
+		"""
+		S2 = np.array([])
+		for branch in self.branches:
+			S2 = np.append(S, branch.power2)
+		return S2
 		
 def solve(system):
 	"""It performs Power Flow by using rectangular node voltage state variables."""
-	
-	Ymatrix, Adj = Ymatrix_calc(system)
 	
 	nodes_num = len(system.nodes)
 	branches_num = len(system.branches)
@@ -161,24 +180,24 @@ def solve(system):
 			H[m][i] = 1
 			H[m+1][i2] = 1
 		elif type is BusType.PQ:
-			H[m][i] = - np.real(Ymatrix[i][i])
-			H[m][i2] = np.imag(Ymatrix[i][i])
-			H[m+1][i] = - np.imag(Ymatrix[i][i])
-			H[m+1][i2] = - np.real(Ymatrix[i][i])
-			idx1 = np.subtract(Adj[i],1)
+			H[m][i] = - np.real(system.Ymatrix[i][i])
+			H[m][i2] = np.imag(system.Ymatrix[i][i])
+			H[m+1][i] = - np.imag(system.Ymatrix[i][i])
+			H[m+1][i2] = - np.real(system.Ymatrix[i][i])
+			idx1 = np.subtract(system.Adjacencies[i],1)
 			idx2 = idx1 + nodes_num
-			H[m][idx1] = - np.real(Ymatrix[i][idx1])
-			H[m][idx2] = np.imag(Ymatrix[i][idx1])
-			H[m+1][idx1] = - np.imag(Ymatrix[i][idx1])
-			H[m+1][idx2] = - np.real(Ymatrix[i][idx1])
+			H[m][idx1] = - np.real(system.Ymatrix[i][idx1])
+			H[m][idx2] = np.imag(system.Ymatrix[i][idx1])
+			H[m+1][idx1] = - np.imag(system.Ymatrix[i][idx1])
+			H[m+1][idx2] = - np.real(system.Ymatrix[i][idx1])
 		elif type is BusType.PV:
 			z[m+1] = np.real(system.nodes[i].power)
-			H[m][i] = - np.real(Ymatrix[i][i])
-			H[m][i2] = np.imag(Ymatrix[i][i])
-			idx1 = np.subtract(Adj[i],1)
+			H[m][i] = - np.real(system.Ymatrix[i][i])
+			H[m][i2] = np.imag(system.Ymatrix[i][i])
+			idx1 = np.subtract(system.Adjacencies[i],1)
 			idx2 = idx1 + nodes_num
-			H[m][idx1] = - np.real(Ymatrix[i][idx1])
-			H[m][idx2] = np.imag(Ymatrix[i][idx1])
+			H[m][idx1] = - np.real(system.Ymatrix[i][idx1])
+			H[m][idx2] = np.imag(system.Ymatrix[i][idx1])
 	
 	epsilon = 10**(-10)
 	diff = 5
@@ -215,10 +234,18 @@ def solve(system):
 		diff = np.amax(np.absolute(Delta_State))
 		
 		V = State[:nodes_num] + 1j * State[nodes_num:]
-				
+		
 		num_iter = num_iter+1
 		
-	return V, num_iter
+	results = PowerflowResults(system)
+	results.load_voltages(V)
+	results.calculateI()
+	results.calculateIinj()
+	results.calculateSinj()
+	results.calculateI()
+	results.calculateS()
+	
+	return results, num_iter
 	
 def calculateI(system, V):
 	"""
