@@ -189,23 +189,26 @@ def Zdatatrue_creation(zdatameas, meas, system):
 	
     return zdatameas
 
-def Zdatameas_creation_fromPF(data, zdatameas, values):
+def Zdatameas_creation_fromPF(data, zdatameas, values, sequence):
     """ It gives the measured values (affected by uncertainty) at the measurement points."""
     import numpy as np
-    
-    num_data = len(values)
+    np.random.seed(sequence)
+
+    Vvalues = values[:int(len(values)/2)]
+    Svalues = values[int(len(values)/2):]
+    num_data = len(Vvalues)
     index = np.linspace(0,num_data-2,int(num_data/2)).astype(int)
-    
-    Vmag = [values[i] for i in index]
-    Vtheta = [values[i] for i in index + 1]
-    Pinj = [];
-    Qinj = [];
-    P1 = [];
-    P2 = [];
-    Q1 = [];
-    Q2 = [];
-    Imag = [];
-    Itheta = [];
+
+    Vmag = [Vvalues[i] for i in index]
+    Vtheta = [Vvalues[i] for i in index + 1]
+    Pinj = Svalues[:int(len(Svalues)/2)]
+    Qinj = Svalues[int(len(Svalues)/2):]
+    P1 = []
+    P2 = []
+    Q1 = []
+    Q2 = []
+    Imag = []
+    Itheta = []
     
     z1 = [Vmag[i-1] for i in data["Measurement"]["Vmag"]["idx"]]
     z2 = [Pinj[i-1] for i in data["Measurement"]["Pinj"]["idx"]]
@@ -227,7 +230,9 @@ def Zdatameas_creation_fromPF(data, zdatameas, values):
     ithetaidx = np.where(zdatameas.mtype==10)
     zdev[vthetaidx] = zdatameas.mstddev[vthetaidx]
     zdev[ithetaidx] = zdatameas.mstddev[ithetaidx]
-    err_pu = np.random.normal(0,1,len(zmeas))
-    zdatameas.mval = zmeas + np.multiply(zdev,err_pu)
+    #err_pu = np.random.normal(0,1,len(zmeas))
+    #zdatameas.mval = zmeas + np.multiply(zdev,err_pu)
+    err_pu = np.random.uniform(-1,1,len(zmeas))
+    zdatameas.mval = zmeas + np.multiply(3*zdev, err_pu)
     
     return zdatameas
