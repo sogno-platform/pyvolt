@@ -1,24 +1,44 @@
 import sys
 import numpy
+from enum import Enum
 
 sys.path.append("../../../dataprocessing")
 from villas.dataprocessing.readtools import read_timeseries_dpsim
+import nv_powerflow_cim
+
+class ElemType(Enum):
+	Node = 1		#Node Voltage
+	Branch = 2		#Complex Power Injection at node
+	
+class MeasType(Enum):
+	V = 1		#Node Voltage
+	Sinj= 2		#Complex Power Injection at node
+	S1 = 4		#Complex Power flow at branch, measured at initial node
+	S2 = 5		#Complex Power flow at branch, measured at final node
+	I = 6		#Branch Current
+	Vpmu = 7	#Node Voltage
+	Ipmu = 9	#Branch Current
 
 class Measurement():
-	def __init__(self, topo_node, meas_type, meas_value, std_dev):
+	def __init__(self, element, element_type, meas_type, meas_value, std_dev):
 		"""
 		Creates a measurement, which is used by the estimation module. Possible types of measurements are: v, p, q, i, Vpmu and Ipmu
-		@meas_type: "p" for active power, "q" for reactive power, "v" for voltage, "i" for electrical current, "Vpmu" and "Ipmu"
-		@node_uuid: 
+		@element: pointer to measured element
+		@element_type: Clarifies which element is measured.
+		@meas_type: 
 		@meas_value: measurement value.
 		@std_dev: standard deviation in the same unit as the measurement.
 		"""
 		
-		if meas_type not in ("v", "Vpmu", "p", "q", "i", "Ipmu"):
-			raise Exception("Invalid measurement type (%s)" % meas_type)
+		if not isinstance(element_type, ElemType):
+			raise Exception("elem_type must be an object of class ElemType")
+		
+		if not isinstance(meas_type, MeasType):
+			raise Exception("meas_type must be an object of class MeasType")
 			
-		self.topology_node = topo_node
+		self.element = element
 		self.meas_type = meas_type
+		self.element_type = element_type
 		self.meas_value = meas_value
 		self.std_dev = self.meas_value*(std_dev/300)
 
@@ -26,8 +46,8 @@ class Measurents_set():
 	def __init__(self):
 		self.measurements_set = []
 		
-	def create_measurement(self, topo_node, meas_type, meas_value, std_dev):
-		self.measurements_set.append(Measurement(topo_node, meas_type, meas_value, std_dev))
+	def create_measurement(self, element, element_type, meas_type, meas_value, std_dev):
+		self.measurements_set.append(Measurement(element, element_type, meas_type, meas_value, std_dev))
 	
 def DsseCall(system, zdata, measurements):
 	""" It identifies the type of measurements present in the measurement set and 
@@ -37,7 +57,6 @@ def DsseCall(system, zdata, measurements):
 
 	# 1. Select type of Estimator.
 	# If at least a PMU is present we launch the combined estimator, otherwise a simple traditional etimator 
-
 	Vmag_meas = 0
 	Vpmu_meas = 0
 	for elem in measurements.measurements_set:
@@ -48,12 +67,9 @@ def DsseCall(system, zdata, measurements):
 	
 	trad_code = 1 if Vmag_meas >0 else 0
 	PMU_code = 2 if Vpmu_meas >0 else 0
-	print(trad_code)
-	print(PMU_code)
 	est_code = trad_code + PMU_code
 		
 	# 2. Run Estimator.
-
 	if est_code == 1:
 		Vest = DsseTrad(system, zdata)
 	elif est_code == 2:
@@ -70,48 +86,16 @@ def DsseCall(system, zdata, measurements):
 	# S2est:  Complex Power flow at branch, measured at final node  
 	# Sinjest: Complex Power Injection at node
 
-	nodes_num = len(system.nodes)
-	branches_num = len(system.branches)
-	
 	""" From here on, all the other quantities of the grid are calculated """
-	Iest = numpy.zeros(branches_num, dtype=numpy.complex)
-	for index in range(branches_num):
-		fr = system.branches[index].start_node.index #branch.start[idx]-1
-		to = system.branches[index].end_node.index   #branch.end[idx]-1
-		Irx[index] = - (Vest.complex[fr] - Vest.complex[to])*system.Ymatrix[fr][to]
-	Ir = numpy.real(Irx)
-	Ix = numpy.imag(Irx)
+	results = nv_powerflow_cim.PowerflowResults(system)
+	results.load_voltages(Vest)
+	results.calculateI()
+	results.calculateIinj()
+	results.calculateSinj()
+	results.calculateI()
+	results.calculateS()
 	
-	#Iest = Real_to_all(Ir,Ix)
-	Iinj_r = numpy.zeros(nodes_num)
-	Iinj_x = numpy.zeros(nodes_num)
-	for k in range(nodes_num):
-		to=[]
-		fr=[]
-		for m in range(branches_num):
-			if k==system.branches[m].start_node.index:
-				fr.append(m)
-			if k==system.branches[m].end_node.index:
-				to.append(m)
-		
-		Iinj_r[k] = numpy.sum(Iest[to].real) - numpy.sum(Iest[fr].real)
-		Iinj_x[k] = numpy.sum(Iest[to].imag) - numpy.sum(Iest[fr].imag)
-		
-	#Iinjest = Real_to_all(Iinj_r,Iinj_x)
-	Iinjest = Iinj_r + 1j*Iinj_x
-	Sinjest = numpy.multiply(Vest.complex,numpy.conj(Iinjest.complex))
-	#Sinjest = Real_to_all(numpy.real(Sinj_rx),numpy.imag(Sinj_rx))
-	
-	S1est=numpy.array([])
-	S2est=numpy.array([])
-	for i in range(branches_num):
-		S1est=numpy.append(S1_rx, Vest.complex[system.branches[i].start_node.index]*numpy.conj(Iest[i]))
-		S2est=numpy.append(S2_rx, -Vest.complex[system.branches[i].end_node.index]*numpy.conj(Iest[i]))
-		
-	#S1est = Real_to_all(numpy.real(S1_rx),numpy.imag(S1_rx))
-	#S2est = Real_to_all(numpy.real(S2_rx),numpy.imag(S2_rx))
-		
-	return Vest, Iest, Iinjest, S1est, S2est, Sinjest
+	return results
 
 def DsseTrad(system, zdata):
 	""" It performs state estimation using rectangular node voltage state variables 
@@ -240,7 +224,7 @@ def DsseTrad(system, zdata):
 		
 		""" Voltage Magnitude Measurements """
 		# at every iteration we update h(x) vector where V measure are available
-		h1 = V[busvi-1].mag[busvi-1]
+		h1 = numpy.absolute(V[busvi-1])
 		# the Jacobian rows where voltage measurements are presents is updated
 		H1 = numpy.zeros((nvi,2*nodes_num-1))
 		for i in range(nvi):

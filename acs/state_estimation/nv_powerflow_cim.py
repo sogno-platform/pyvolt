@@ -98,7 +98,15 @@ class PowerflowResults():
 			for node in self.nodes:
 				if branch_index == node.topology_node.index:
 					branch.power2 = -node.voltage*(np.conj(branch.current))
-					
+	
+	def get_node(self, index):
+		"""
+		return the PowerflowNode with PowerflowNode.topology_node.index == index
+		"""
+		for node in self.nodes:
+			if index == node.topology_node.index:
+				return node
+				
 	def get_voltages(self):
 		"""
 		get complex Power Injection at nodes
