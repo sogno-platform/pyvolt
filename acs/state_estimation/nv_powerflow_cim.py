@@ -147,7 +147,7 @@ class PowerflowResults():
 		"""
 		S1 = np.array([])
 		for branch in self.branches:
-			S1 = np.append(S, branch.power)
+			S1 = np.append(S1, branch.power)
 		return S1
 		
 	def get_S2(self):
@@ -157,7 +157,7 @@ class PowerflowResults():
 		"""
 		S2 = np.array([])
 		for branch in self.branches:
-			S2 = np.append(S, branch.power2)
+			S2 = np.append(S2, branch.power2)
 		return S2
 		
 def solve(system):
@@ -243,7 +243,8 @@ def solve(system):
 	results.calculateIinj()
 	results.calculateSinj()
 	results.calculateI()
-	results.calculateS()
+	results.calculateS1()
+	results.calculateS2()
 	
 	return results, num_iter
 	
