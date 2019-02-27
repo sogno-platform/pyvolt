@@ -1,54 +1,12 @@
 import sys
 import numpy
-from enum import Enum
+import nv_powerflow_cim
+from measurement import *
 
 sys.path.append("../../../dataprocessing")
 from villas.dataprocessing.readtools import read_timeseries_dpsim
-import nv_powerflow_cim
 
-class ElemType(Enum):
-	Node = 1		#Node Voltage
-	Branch = 2		#Complex Power Injection at node
-	
-class MeasType(Enum):
-	V = 1		#Node Voltage
-	Sinj= 2		#Complex Power Injection at node
-	S1 = 4		#Complex Power flow at branch, measured at initial node
-	S2 = 5		#Complex Power flow at branch, measured at final node
-	I = 6		#Branch Current
-	Vpmu = 7	#Node Voltage
-	Ipmu = 9	#Branch Current
 
-class Measurement():
-	def __init__(self, element, element_type, meas_type, meas_value, std_dev):
-		"""
-		Creates a measurement, which is used by the estimation module. Possible types of measurements are: v, p, q, i, Vpmu and Ipmu
-		@element: pointer to measured element
-		@element_type: Clarifies which element is measured.
-		@meas_type: 
-		@meas_value: measurement value.
-		@std_dev: standard deviation in the same unit as the measurement.
-		"""
-		
-		if not isinstance(element_type, ElemType):
-			raise Exception("elem_type must be an object of class ElemType")
-		
-		if not isinstance(meas_type, MeasType):
-			raise Exception("meas_type must be an object of class MeasType")
-			
-		self.element = element
-		self.meas_type = meas_type
-		self.element_type = element_type
-		self.meas_value = meas_value
-		self.std_dev = self.meas_value*(std_dev/300)
-
-class Measurents_set():
-	def __init__(self):
-		self.measurements_set = []
-		
-	def create_measurement(self, element, element_type, meas_type, meas_value, std_dev):
-		self.measurements_set.append(Measurement(element, element_type, meas_type, meas_value, std_dev))
-	
 def DsseCall(system, zdata, measurements):
 	""" It identifies the type of measurements present in the measurement set and 
 	calls the appropriate estimator for dealing with them."""
@@ -104,8 +62,9 @@ def DsseTrad(system, zdata):
 	# system: model of the system (nodes, lines, topology)
 	# zdata: Vector of measurements in Input (voltages, currents, powers)	
 	
-	nodes_num = len(system.nodes) # number of nodes of the grids, identify also the number of states (2*nodes_num-1)
-	
+	# number of nodes of the grids, identify also the number of states (2*nodes_num-1)
+	nodes_num = len(system.nodes) 
+			
 	vidx = numpy.where(zdata.mtype==1) #voltage input measurement
 	pidx = numpy.where(zdata.mtype==2) #active power input measurement
 	qidx = numpy.where(zdata.mtype==3) #reactive power input measurement
@@ -330,12 +289,11 @@ def DssePmu(system, zdata):
 	tbusipmu = zdata.mto[imagpmuidx]
 	   
 	z = zdata.mval
-	
 	Pinj = z[pidx]
 	Qinj = z[qidx]
 	Pbr = z[pfidx]
 	Qbr = z[qfidx]
-	
+
 	idx = numpy.where(zdata.mstddev<10**(-6))
 	zdata.mstddev[idx] = 10**(-6)
 	weights = zdata.mstddev**(-2)
@@ -477,7 +435,7 @@ def DssePmu(system, zdata):
 		
 	return V
 	
-def DsseMixed(system, zdata):
+def DsseMixed(system, measurements):
 	""" It performs state estimation using rectangular node voltage state variables
 	and it is built to work in scenarios where both conventional and PMU measurements 
 	are simultaneously present."""
@@ -493,14 +451,17 @@ def DsseMixed(system, zdata):
 	imagpmuidx = numpy.where(zdata.mtype==9)
 	iphasepmuidx = numpy.where(zdata.mtype==10)
 	
-	nvi = len(vidx[0])
-	npi = len(pidx[0])
-	nqi = len(qidx[0])
-	npf = len(pfidx[0])
-	nqf = len(qfidx[0])
-	nii = len(iidx[0])
-	nvpmu = len(vmagpmuidx[0])
-	nipmu = len(imagpmuidx[0])
+	#nvi = len(vidx[0])
+	#npi = len(pidx[0])
+	#nqi = len(qidx[0])
+	#npf = len(pfidx[0])
+	#nqf = len(qfidx[0])
+	#nii = len(iidx[0])
+	#nvpmu = len(vmagpmuidx[0])
+	#nipmu = len(imagpmuidx[0])
+	
+	#calculate number of measurements of each type
+	nvi, npi, nqi, npf, nqf, nii, nvpum, nipmu = measurements.getNumberOfMeasurements()
 	
 	busvi = zdata.mfrom[vidx]
 	buspi = zdata.mfrom[pidx]
@@ -514,17 +475,23 @@ def DsseMixed(system, zdata):
 	fbusipmu = zdata.mfrom[imagpmuidx]
 	tbusipmu = zdata.mto[imagpmuidx]
 	   
-	z = zdata.mval
-
-	Pinj = z[pidx]
-	Qinj = z[qidx]
-	Pbr = z[pfidx]
-	Qbr = z[qfidx]
+	#z = zdata.mval
+	#Pinj = z[pidx]
+	#Qinj = z[qidx]
+	#Pbr = z[pfidx]
+	#Qbr = z[qfidx]
 	
-	idx = numpy.where(zdata.mstddev<10**(-6))
-	zdata.mstddev[idx] = 10**(-6)
-	weights = zdata.mstddev**(-2)
-	W = numpy.diag(weights)
+	Pinj = measurements.getMeasuredActiveInjPowers()
+	Qinj = measurements.getMeasuredReactiveInjPowers()
+	Pbr = measurements.getMeasuredActiveBPowers()
+	Qbr = measurements.getMeasuredReactiveBPowers()
+	
+	#idx = numpy.where(zdata.mstddev<10**(-6))
+	#zdata.mstddev[idx] = 10**(-6)
+	#weights = zdata.mstddev**(-2)
+	#W = numpy.diag(weights)
+	# weights matrix is obtained as stdandard_deviations^-2
+	W = measurements.getWeightsMatrix()
 	
 	Gmatrix = system.Ymatrix.real
 	Bmatrix = system.Ymatrix.imag
