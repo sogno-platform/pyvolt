@@ -48,7 +48,6 @@ class Zdata_init:
         self.mto = np.zeros(nmeas)
         self.mstddev = np.zeros(nmeas)
 		
-		
 """ Insert here per unit values of the grid for power and voltage """
 S = 100*(10**6)
 V = (11*(10**3))/math.sqrt(3)
@@ -82,32 +81,46 @@ Pmu_phase_unc = 0.7
 measurements_set = nv_state_estimator_cim.Measurents_set()
 for i in [0,10,54]:
 	PowerflowNode = res.get_node(i)
-	measurements_set.create_measurement(PowerflowNode.topology_node, nv_state_estimator_cim.ElemType.Node, nv_state_estimator_cim.MeasType.V, PowerflowNode.voltage, V_unc)
-	measurements_set.create_measurement(PowerflowNode.topology_node, nv_state_estimator_cim.ElemType.Node, nv_state_estimator_cim.MeasType.Vpmu, PowerflowNode.voltage, Pmu_mag_unc)
-for i in [12,35]:
-	measurements_set.create_measurement(res.branches[i].topology_branch, nv_state_estimator_cim.ElemType.Branch,  nv_state_estimator_cim.MeasType.I, res.branches[i].current, I_unc)
-	measurements_set.create_measurement(res.branches[i].topology_branch, nv_state_estimator_cim.ElemType.Branch,  nv_state_estimator_cim.MeasType.Ipmu, res.branches[i].current, Pmu_mag_unc)
+	std_dev = np.absolute(PowerflowNode.voltage)*(V_unc/300)
+	measurements_set.create_measurement(PowerflowNode.topology_node, nv_state_estimator_cim.ElemType.Node, nv_state_estimator_cim.MeasType.V_mag, np.absolute(PowerflowNode.voltage), std_dev)
 for i in range(1,len(res.nodes)):
 	PowerflowNode = res.get_node(i)
-	measurements_set.create_measurement(PowerflowNode.topology_node, nv_state_estimator_cim.ElemType.Node, nv_state_estimator_cim.MeasType.Sinj, PowerflowNode.power, Sinj_unc)
+	std_dev = np.absolute(PowerflowNode.power.real*(Sinj_unc/300))
+	measurements_set.create_measurement(PowerflowNode.topology_node, nv_state_estimator_cim.ElemType.Node, nv_state_estimator_cim.MeasType.Sinj_real, PowerflowNode.power.real, std_dev)
+for i in range(1,len(res.nodes)):
+	PowerflowNode = res.get_node(i)
+	std_dev = np.absolute(PowerflowNode.power.imag*(Sinj_unc/300))
+	measurements_set.create_measurement(PowerflowNode.topology_node, nv_state_estimator_cim.ElemType.Node, nv_state_estimator_cim.MeasType.Sinj_imag, PowerflowNode.power.imag, std_dev)
 for i in [0,10,27,54,58]:
-	measurements_set.create_measurement(res.branches[i].topology_branch, nv_state_estimator_cim.ElemType.Branch,  nv_state_estimator_cim.MeasType.S1, res.branches[i].power, I_unc)
+	std_dev = np.absolute(res.branches[i].power.real*(S_unc/300))
+	measurements_set.create_measurement(res.branches[i].topology_branch, nv_state_estimator_cim.ElemType.Branch, nv_state_estimator_cim.MeasType.S1_real, res.branches[i].power.real, std_dev)
 for i in [9,53]:
-	measurements_set.create_measurement(res.branches[i].topology_branch, nv_state_estimator_cim.ElemType.Branch,  nv_state_estimator_cim.MeasType.S2, res.branches[i].power2, I_unc)
+	std_dev = np.absolute(res.branches[i].power2.real*(S_unc/300))
+	measurements_set.create_measurement(res.branches[i].topology_branch, nv_state_estimator_cim.ElemType.Branch, nv_state_estimator_cim.MeasType.S2_real, res.branches[i].power2.real, std_dev)
+for i in [0,10,27,54,58]:	
+	std_dev = np.absolute(res.branches[i].power.imag*(S_unc/300))
+	measurements_set.create_measurement(res.branches[i].topology_branch, nv_state_estimator_cim.ElemType.Branch, nv_state_estimator_cim.MeasType.S1_imag, res.branches[i].power.imag, std_dev)
+for i in [9,53]:
+	std_dev = np.absolute(res.branches[i].power2.imag*(S_unc/300))
+	measurements_set.create_measurement(res.branches[i].topology_branch, nv_state_estimator_cim.ElemType.Branch, nv_state_estimator_cim.MeasType.S2_imag, res.branches[i].power2.imag, std_dev)
+for i in [12,35]:
+	std_dev = np.absolute(res.branches[i].current)*(I_unc/300)
+	measurements_set.create_measurement(res.branches[i].topology_branch, nv_state_estimator_cim.ElemType.Branch, nv_state_estimator_cim.MeasType.I_mag, np.absolute(res.branches[i].current), std_dev)
+for i in [0,10,54]:
+	PowerflowNode = res.get_node(i)
+	std_dev = np.absolute(PowerflowNode.voltage)*(Pmu_mag_unc/300)
+	measurements_set.create_measurement(PowerflowNode.topology_node, nv_state_estimator_cim.ElemType.Node, nv_state_estimator_cim.MeasType.Vpmu_mag, np.absolute(PowerflowNode.voltage), std_dev)
+for i in [0,10,54]:
+	PowerflowNode = res.get_node(i)
+	std_dev = Pmu_phase_unc/300
+	measurements_set.create_measurement(PowerflowNode.topology_node, nv_state_estimator_cim.ElemType.Node, nv_state_estimator_cim.MeasType.Vpmu_phase, np.angle(PowerflowNode.voltage), std_dev)
+for i in [12,35]:
+	std_dev = np.absolute(res.branches[i].current)*(Pmu_mag_unc/300)
+	measurements_set.create_measurement(res.branches[i].topology_branch, nv_state_estimator_cim.ElemType.Branch, nv_state_estimator_cim.MeasType.Ipmu_mag, np.absolute(res.branches[i].current), std_dev)
+for i in [12,35]:
+	std_dev = Pmu_phase_unc/300
+	measurements_set.create_measurement(res.branches[i].topology_branch, nv_state_estimator_cim.ElemType.Branch, nv_state_estimator_cim.MeasType.Ipmu_phase, np.angle(res.branches[i].current), std_dev)
 
-print("########################   TEST   ####################")
-Meas_mag = np.array([])
-Meas_phase = np.array([])
-for meas in measurements_set.measurements_set:
-	if meas.meas_type == nv_state_estimator_cim.MeasType.Vpmu:
-		Meas_mag = np.append(Meas_mag, np.absolute(meas.meas_value))
-		Meas_phase = np.append(Meas_phase, np.angle(meas.meas_value))
-		#Meas_mag = np.append(Meas_mag, meas.meas_value.real)
-		#Meas_phase = np.append(Meas_phase, meas.meas_value.imag)
-print(Meas_mag)
-print(Meas_phase)
-
-	
 V = Measurements(V_idx,V_unc)
 I = Measurements(I_idx,I_unc)
 Sinj = Measurements(Sinj_idx,Sinj_unc)
@@ -119,6 +132,28 @@ Vpmu_mag = Measurements(Vpmu_idx,Pmu_mag_unc)
 Vpmu_phase = Measurements(Vpmu_idx,Pmu_phase_unc)
 meas = Measurement_set(V, I, Sinj, S1, S2, Vpmu_mag, Vpmu_phase, Ipmu_mag, Ipmu_phase)
 zdata = Zdata_init(meas)
-zdatameas =  Zdata_init(meas)
+zdatameas = Zdata_init(meas)
 
 zdata, zdatameas = py_95bus_meas_data.Zdatatrue_creation(zdata, zdatameas, meas, branch, Vtrue, Itrue, Iinjtrue, S1true, S2true, Sinjtrue)
+err_pu, zdatameas = py_95bus_meas_data.Zdatameas_creation(zdata, zdatameas)
+measurements_set.meas_creation_test(err_pu)
+
+#compare results:
+#print("zdata.mval==measurements_set.measurements?: " + str((zdata.mval==measurements_set.getMeasValues()).all()))
+
+Vest, Iest, Iinjest, S1est, S2est, Sinjest = nv_state_estimator.DsseCall(branch, node, zdatameas, system.Ymatrix, system.Adjacencies)
+results = nv_state_estimator_cim.DsseCall(system, measurements_set) 
+print("test==test_cim?: " + str(np.array_equal(np.around(Vest.complex,6), np.around(results.get_voltages(),6))))
+
+
+"""
+nodes_num = len(system.nodes)
+Gmatrix = system.Ymatrix.real
+Bmatrix = system.Ymatrix.imag
+Yabs_matrix = np.absolute(system.Ymatrix)
+Yphase_matrix = np.angle(system.Ymatrix)
+Adj = system.Adjacencies
+test = nv_state_estimator.DsseMixed(branch, node, zdatameas, system.Ymatrix, system.Adjacencies)
+test_cim = nv_state_estimator_cim.DsseMixed(nodes_num, measurements_set, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matrix, Adj)
+print("test==test_cim?: " +  str(np.array_equal(np.around(test,6), np.around(test_cim,6))))
+"""
