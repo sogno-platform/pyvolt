@@ -1,124 +1,105 @@
 import sys
-import numpy
-import nv_powerflow_cim
+import numpy as np
+from results import Results
 from measurement import *
 
-sys.path.append("../../../dataprocessing")
-from villas.dataprocessing.readtools import read_timeseries_dpsim
-
-
-def DsseCall(system, zdata, measurements):
-	""" It identifies the type of measurements present in the measurement set and 
-	calls the appropriate estimator for dealing with them."""
-	# system: model of the system (nodes, lines, topology)
-	# zdata: Vector of measurements in Input (voltages, currents, powers)
-
-	# 1. Select type of Estimator.
-	# If at least a PMU is present we launch the combined estimator, otherwise a simple traditional etimator 
-	Vmag_meas = 0
-	Vpmu_meas = 0
-	for elem in measurements.measurements_set:
-		if elem.meas_type=="v":
-			Vmag_meas = Vmag_meas + 1
-		elif elem.meas_type=="Vpmu":
-			Vpmu_meas = Vpmu_meas + 1
-	
-	trad_code = 1 if Vmag_meas >0 else 0
-	PMU_code = 2 if Vpmu_meas >0 else 0
-	est_code = trad_code + PMU_code
+def DsseCall(system, measurements):
+		""" 
+		Performs state estimation
+		It identifies the type of measurements present in the measurement set and 
+		calls the appropriate estimator for dealing with them.
 		
-	# 2. Run Estimator.
-	if est_code == 1:
-		Vest = DsseTrad(system, zdata)
-	elif est_code == 2:
-		Vest = DssePmu(system, zdata)
-	else:
-		Vest = DsseMixed(system, zdata)
+		params:
+		@system: model of the system (nodes, lines, topology)
+		@measurements: Vector of measurements in Input (voltages, currents, powers)
+
+		return: object of class results.Results
+		"""
+
+		# 1. Select type of Estimator.
+		# If at least a PMU is present we launch the combined estimator, otherwise a simple traditional etimator 
+		Vmag_meas = 0
+		Vpmu_meas = 0
+		for elem in measurements.measurements:
+			if elem.meas_type=="V_mag":
+				Vmag_meas = Vmag_meas + 1
+			elif elem.meas_type=="Vpmu_mag":
+				Vpmu_meas = Vpmu_meas + 1
+
+		trad_code = 1 if Vmag_meas >0 else 0
+		PMU_code = 2 if Vpmu_meas >0 else 0
+		est_code = trad_code + PMU_code
+
+		# 2. Run Estimator.
+
+		#number of nodes of the grid
+		nodes_num = len(system.nodes) 
 		
-	# 3. Populate arrays with data in output of estimator
-	# The Estimator provides:
-	# Vest: Node Voltage phasor estimated 
-	# Iest: Branch Current phasor estimated   
-	# Iinjest: Injection Current phasor estimated 
-	# S1est:  Complex Power flow at branch, measured at initial node
-	# S2est:  Complex Power flow at branch, measured at final node  
-	# Sinjest: Complex Power Injection at node
+		Gmatrix = system.Ymatrix.real
+		Bmatrix = system.Ymatrix.imag
+		Yabs_matrix = np.absolute(system.Ymatrix)
+		Yphase_matrix = np.angle(system.Ymatrix)
+		Adj = system.Adjacencies
 
-	""" From here on, all the other quantities of the grid are calculated """
-	results = nv_powerflow_cim.PowerflowResults(system)
-	results.load_voltages(Vest)
-	results.calculateI()
-	results.calculateIinj()
-	results.calculateSinj()
-	results.calculateI()
-	results.calculateS()
-	
-	return results
+		if est_code == 1:
+			Vest = DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matrix)
+		elif est_code == 2:
+			Vest = DssePmu(nodes_num, measurements, Gmatrix, Bmatrix)
+		else:
+			Vest = DsseMixed(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matrix, Adj)
 
-def DsseTrad(system, zdata):
-	""" It performs state estimation using rectangular node voltage state variables 
-	and it is customized to work without PMU measurements"""
-	# Traditional state estimator
-	# system: model of the system (nodes, lines, topology)
-	# zdata: Vector of measurements in Input (voltages, currents, powers)	
+		# 3. Populate arrays with data in output of estimator
+		# The Estimator provides:
+		# Vest: Node Voltage phasor estimated 
+		# Iest: Branch Current phasor estimated   
+		# Iinjest: Injection Current phasor estimated 
+		# S1est:  Complex Power flow at branch, measured at initial node
+		# S2est:  Complex Power flow at branch, measured at final node  
+		# Sinjest: Complex Power Injection at node
+
+		""" From here on, all the other quantities of the grid are calculated """
+		results = Results(system)
+		results.load_voltages(Vest)
+		results.calculateI()
+		results.calculateIinj()
+		results.calculateSinj()
+		results.calculateI()
+		results.calculateS1()
+		results.calculateS2()
+
+		return results
+
+def DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matrix):
+	"""
+	Traditional state estimator
+	It performs state estimation using rectangular node voltage state variables 
+	and it is customized to work without PMU measurements
+
+	params: 
+	@nodes_num: number of nodes of the grid
+	@measurements: Vector of measurements in Input (voltages, currents, powers)
+	@Gmatrix
+	@Bmatrix
+	@Yabs_matrix
+	@Yphase_matrix
+
+	return: np.array V - estimated voltages
+	"""
 	
-	# number of nodes of the grids, identify also the number of states (2*nodes_num-1)
-	nodes_num = len(system.nodes) 
-			
-	vidx = numpy.where(zdata.mtype==1) #voltage input measurement
-	pidx = numpy.where(zdata.mtype==2) #active power input measurement
-	qidx = numpy.where(zdata.mtype==3) #reactive power input measurement
-	pfidx = numpy.where(zdata.mtype==4) #active power flow input measurement
-	qfidx = numpy.where(zdata.mtype==5) #reactive power flow input measurement
-	iidx = numpy.where(zdata.mtype==6) #current flow input measurement
-	
-	nvi = len(vidx[0]) # number v.measure
-	npi = len(pidx[0]) # number power.act.measure
-	nqi = len(qidx[0]) # number power.react.measure
-	npf = len(pfidx[0]) # number power.act.flow.measure
-	nqf = len(qfidx[0]) # number power.react.flow.measure
-	nii = len(iidx[0]) #number c.flow.measure
-	
-	busvi = zdata.mfrom[vidx] #node where v.measure is taken
-	buspi = zdata.mfrom[pidx] #node where power.act.measure is taken
-	busqi = zdata.mfrom[qidx] #node where power.react.measure is taken
-	fbuspf = zdata.mfrom[pfidx] #node from where power.act.measure starts
-	tbuspf = zdata.mto[pfidx] #node to where power.act.measure goes
-	fbusqf = zdata.mfrom[qfidx] #node from where power.react.measure starts
-	#tbusqf = zdata.mto[qfidx] #should be added [aan] ? #node to where power.react.measure goes
-	fbusiamp = zdata.mfrom[iidx] #node from where current.flow.measure starts
-	tbusiamp = zdata.mto[iidx] #node to where current.flow.measure goes
-	   
-	z = zdata.mval #values of measurements are stored in array z
-	
-	#extrapolate different types of measurements
-	Pinj = z[pidx] 
-	Qinj = z[qidx]
-	Pbr = z[pfidx]
-	Qbr = z[qfidx]
-	
-	# zero injection measurements
-	# the weight is small and can bring instability during matrix inversion, so we "cut" everything below 10^-6
-	idx = numpy.where(zdata.mstddev<10**(-6)) 
-	zdata.mstddev[idx] = 10**(-6)
-	
-	# weights matrix is obtained as stdandard_deviations^-2
-	weights = zdata.mstddev**(-2)
-	W = numpy.diag(weights)
-	
-	# Admittances of the lines of the network
-	Gmatrix = system.Ymatrix.real
-	Bmatrix = system.Ymatrix.imag
-	Yabs_matrix = numpy.absolute(system.Ymatrix)
-	Yphase_matrix = numpy.angle(system.Ymatrix)
-	
+	#calculate weights matrix (obtained as stdandard_deviations^-2)
+	weights = measurements.getWeightsMatrix()
+	W = np.diag(weights)
+
 	# Jacobian Matrix. Includes the derivatives of the measurements (voltages, currents, powers) with respect to the states (voltages)
-	
+
+	#Jacobian for Power Injection Measurements
+	#H2, H3 = calculateJacobiMatrixSinj(measurements, nodes_num-1, Gmatrix, Bmatrix, Adj)
+
 	""" Jacobian for Power Injection Measurements (converted to equivalent 
 	rectangualar current measurements) """
 	# Derivative of power injection(converted to current injection) with respect to voltage: it is the admittance. 
-	H2 = numpy.zeros((npi,2*nodes_num-1))
-	H3 = numpy.zeros((nqi,2*nodes_num-1))
+	H2 = np.zeros((npi,2*nodes_num-1))
+	H3 = np.zeros((nqi,2*nodes_num-1))
 	for i in range(npi):
 		m = buspi[i]-1
 		m2 = m + nodes_num - 1
@@ -126,307 +107,197 @@ def DsseTrad(system, zdata):
 		H2[i][m2] = Bmatrix[m][m]
 		H3[i][m] = - Bmatrix[m][m]
 		H3[i][m2] = - Gmatrix[m][m]
-		idx = numpy.subtract(system.Adj[m],1)
+		idx = np.subtract(system.Adjacencies[m],1)
 		H2[i][idx] = - Gmatrix[m][idx]
 		H3[i][idx] = - Bmatrix[m][idx]
 		if 0 in idx:
-			pos = numpy.where(idx==0)
-			idx = numpy.delete(idx,pos)
+			pos = np.where(idx==0)
+			idx = np.delete(idx,pos)
 		idx2 = idx + nodes_num-1
 		H2[i][idx2] = Bmatrix[m][idx]
 		H3[i][idx2] = - Gmatrix[m][idx]
-		
-	""" Jacobian for branch Power Measurements (converted to equivalent 
-	rectangualar current measurements)"""
-	# Derivative of branch power flow(converted to current flow) with respect to voltage: it is the admittance. 
-	H4 = numpy.zeros((npf,2*nodes_num-1))
-	H5 = numpy.zeros((nqf,2*nodes_num-1))
-	for i in range(npf):
-		m = fbuspf[i]-1
-		n = tbuspf[i]-1
-		H4[i][m] = - Gmatrix[m][n]
-		H4[i][n] = Gmatrix[m][n]
-		H5[i][m] = - Bmatrix[m][n]
-		H5[i][n] = Bmatrix[m][n]
-		if m > 0:
-			m2 = m + nodes_num-1
-			H4[i][m2] = Bmatrix[m][n]
-			H5[i][m2] = - Gmatrix[m][n]
-		if n > 0:
-			n2 = n + nodes_num-1
-			H4[i][n2] = - Bmatrix[m][n]
-			H5[i][n2] = Gmatrix[m][n]
-		
-	epsilon = 5 # treshold to stop Netwon Rapson iterations
-	Vr = numpy.ones(nodes_num) #initialize voltage real part to 1 per unit
-	Vx = numpy.zeros(nodes_num) #initialize voltage imaginary part to 0 per unit
-	V = Vr + 1j*Vx
-	num_iter = 0 # number of iterations of Newton Rapson
 	
-	StateVr = numpy.ones(nodes_num) #initialize voltage real part to 1 per unit
-	StateVx = numpy.zeros(nodes_num-1) #initialize voltage imaginary part to 0 per unit
-	State = numpy.concatenate((StateVr,StateVx),axis=0)
+	#Jacobian for branch Power Measurements
+	H4, H5 = calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, type=2)
+
+	#get array which contains the index of measurements type MeasType.Sinj_real, MeasType.Sinj_imag in the array measurements.measurements
+	pidx = measurements.getIndexOfMeasurements(type=MeasType.Sinj_real)
+	qidx = measurements.getIndexOfMeasurements(type=MeasType.Sinj_imag)
+
+	#get array which contains the index of measurements type MeasType.S_real, MeasType.S_imag in the array measurements.measurements
+	p1br = measurements.getIndexOfMeasurements(type=MeasType.S1_real)
+	p2br = measurements.getIndexOfMeasurements(type=MeasType.S2_real)
+	q1br = measurements.getIndexOfMeasurements(type=MeasType.S1_imag)
+	q2br = measurements.getIndexOfMeasurements(type=MeasType.S2_imag)
+
+	#get an array with all measured values (affected by uncertainty)
+	z = measurements.getmVal()
+	
+	V = np.ones(nodes_num) + 1j*np.zeros(nodes_num)
+	State = np.concatenate((np.ones(nodes_num), np.zeros(nodes_num)), axis=0)
+	epsilon = 5
+	num_iter = 0
 	
 	# Iteration of Netwon Rapson method: needed to solve non-linear system of equation
 	while epsilon>10**(-6):
 		""" Computation of equivalent current measurements in place of the power measurements """
 		# in every iteration the input power measurements are converted into currents by dividing by the voltage estimated at the previous iteration
-		Irinj = (Pinj*V[buspi-1].real + Qinj*V[busqi-1].imag)/(numpy.absolute(V[buspi-1])**2)
-		Ixinj = (Pinj*V[buspi-1].imag - Qinj*V[busqi-1].real)/(numpy.absolute(V[buspi-1])**2)
-		z[pidx] = Irinj
-		z[qidx] = Ixinj
-		
-		Irbr = (Pbr*V[fbuspf-1].real + Qbr*V[fbusqf-1].imag)/(numpy.absolute(V[fbuspf-1])**2)
-		Ixbr = (Pbr*V[fbuspf-1].imag - Qbr*V[fbusqf-1].real)/(numpy.absolute(V[fbuspf-1])**2)
-		z[pfidx] = Irbr
-		z[qfidx] = Ixbr
-		
+		z = convertSinjMeasIntoCurrents(measurements, V, z, pidx, qidx)
+		z = convertSbranchMeasIntoCurrents(measurements, V, z, p1br, q1br, p2br, q2br)
+
 		""" Voltage Magnitude Measurements """
 		# at every iteration we update h(x) vector where V measure are available
-		h1 = numpy.absolute(V[busvi-1])
+		h1 = np.absolute(V[busvi-1])
 		# the Jacobian rows where voltage measurements are presents is updated
-		H1 = numpy.zeros((nvi,2*nodes_num-1))
+		H1 = np.zeros((nvi,2*nodes_num-1))
 		for i in range(nvi):
 			m = busvi[i]-1
-			H1[i][m] = numpy.cos(numpy.angle(V[m]))
+			H1[i][m] = np.cos(np.angle(V[m]))
 			if m > 0:
 				m2 = m + nodes_num-1
-				H1[i][m2] = numpy.sin(numpy.angle(V[m]))
+				H1[i][m2] = np.sin(np.angle(V[m]))
 				
 		""" Power Injection Measurements """
 		# h(x) vector where power injections are present
-		h2 = numpy.inner(H2,State)
-		h3 = numpy.inner(H3,State)
+		h2 = np.inner(H2,State)
+		h3 = np.inner(H3,State)
 		
 		""" Power Flow Measurements """
 		# h(x) vector where power flows are present
-		h4 = numpy.inner(H4,State)
-		h5 = numpy.inner(H5,State)
+		h4 = np.inner(H4,State)
+		h5 = np.inner(H5,State)
 		
 		""" Current Magnitude Measurements """
 		# h(x) vector where current flows are present
-		h6re = numpy.zeros((nii))
-		h6im = numpy.zeros((nii))
-		h6complex = numpy.zeros((nii),dtype=complex)
-		h6 = numpy.ones((nii))
-		H6 = numpy.zeros((nii,2*nodes_num-1))
+		h6re = np.zeros((nii))
+		h6im = np.zeros((nii))
+		h6complex = np.zeros((nii),dtype=complex)
+		h6 = np.ones((nii))
+		H6 = np.zeros((nii,2*nodes_num-1))
 		for i in range(nii):
 			m = fbusiamp[i]-1
 			n = tbusiamp[i]-1
-			h6re[i] = Yabs_matrix[m][n]*((V[n].real-V[m].real)*numpy.cos(Yphase_matrix[m][n]) + (V[m].imag-V[n].imag)*numpy.sin(Yphase_matrix[m][n]))
-			h6im[i] = Yabs_matrix[m][n]*((V[n].real-V[m].real)*numpy.sin(Yphase_matrix[m][n]) + (V[n].imag-V[m].imag)*numpy.cos(Yphase_matrix[m][n]))
+			h6re[i] = Yabs_matrix[m][n]*((V[n].real-V[m].real)*np.cos(Yphase_matrix[m][n]) + (V[m].imag-V[n].imag)*np.sin(Yphase_matrix[m][n]))
+			h6im[i] = Yabs_matrix[m][n]*((V[n].real-V[m].real)*np.sin(Yphase_matrix[m][n]) + (V[n].imag-V[m].imag)*np.cos(Yphase_matrix[m][n]))
 			h6complex[i] = h6re[i] + 1j*h6im[i]
 			if num_iter>0:
-				h6[i] = numpy.absolute(h6complex[i])
-			H6[i][m] = - Yabs_matrix[m][n]*(numpy.cos(Yphase_matrix[m][n])*h6re[i] + numpy.sin(Yphase_matrix[m][n])*h6im[i])/h6[i]
-			H6[i][n] = Yabs_matrix[m][n]*(numpy.cos(Yphase_matrix[m][n])*h6re[i] + numpy.sin(Yphase_matrix[m][n])*h6im[i])/h6[i]
+				h6[i] = np.absolute(h6complex[i])
+			H6[i][m] = - Yabs_matrix[m][n]*(np.cos(Yphase_matrix[m][n])*h6re[i] + np.sin(Yphase_matrix[m][n])*h6im[i])/h6[i]
+			H6[i][n] = Yabs_matrix[m][n]*(np.cos(Yphase_matrix[m][n])*h6re[i] + np.sin(Yphase_matrix[m][n])*h6im[i])/h6[i]
 			if m > 0:
 				m2 = m + nodes_num-1
-				H6[i][m2] = - Yabs_matrix[m][n]*(numpy.cos(Yphase_matrix[m][n])*h6im[i] - numpy.sin(Yphase_matrix[m][n])*h6re[i])/h6[i]
+				H6[i][m2] = - Yabs_matrix[m][n]*(np.cos(Yphase_matrix[m][n])*h6im[i] - np.sin(Yphase_matrix[m][n])*h6re[i])/h6[i]
 			if n > 0:
 				n2 = n + nodes_num-1
-				H6[i][n2] = Yabs_matrix[m][n]*(numpy.cos(Yphase_matrix[m][n])*h6im[i] - numpy.sin(Yphase_matrix[m][n])*h6re[i])/h6[i]
+				H6[i][n2] = Yabs_matrix[m][n]*(np.cos(Yphase_matrix[m][n])*h6im[i] - np.sin(Yphase_matrix[m][n])*h6re[i])/h6[i]
 		
 		""" WLS computation """
 		# all the sub-matrixes of H calcualted so far are merged in a unique matrix
-		H = numpy.concatenate((H1,H2,H3,H4,H5,H6),axis=0)
+		H = np.concatenate((H1,H2,H3,H4,H5,H6),axis=0)
 		# h(x) sub-vectors are concatenated
-		y = numpy.concatenate((h1,h2,h3,h4,h5,h6),axis=0)
+		y = np.concatenate((h1,h2,h3,h4,h5,h6),axis=0)
 		# "res" is the residual vector. The difference between input measurements and h(x)
-		res = numpy.subtract(z,y)
+		res = np.subtract(z,y)
 		# g = transpose(H) * W * res
-		g = numpy.inner(H.transpose(),numpy.inner(W,res))
-		WH = numpy.inner(W,H.transpose())
+		g = np.inner(H.transpose(),np.inner(W,res))
+		WH = np.inner(W,H.transpose())
 		# G is the gain matrix, that will have to be inverted at each iteration
-		G = numpy.inner(H.transpose(),WH.transpose())
+		G = np.inner(H.transpose(),WH.transpose())
 		# inversion of G
-		Ginv = numpy.linalg.inv(G)
+		Ginv = np.linalg.inv(G)
 		# Delta includes the updates of the states for the current Newton Rapson iteration
-		Delta_State = numpy.inner(Ginv,g)
+		Delta_State = np.inner(Ginv,g)
 		# state is updated
 		State = State + Delta_State
 		# calculate the NR treeshold (for the next while check)
-		epsilon = numpy.amax(numpy.absolute(Delta_State))
+		epsilon = np.amax(np.absolute(Delta_State))
 		# update the voltages 
 		V.real = State[:nodes_num]
 		V.imag = State[nodes_num:]
-		V.imag = numpy.concatenate(([0],V.imag), axis=0)
-		#V = Real_to_all(V.real, V.imag)
+		V.imag = np.concatenate(([0],V.imag), axis=0)
 		
 		num_iter = num_iter+1
 	
 	return V
 
-def DssePmu(system, zdata):
-	""" It performs state estimation using rectangular node voltage state variables 
-	and it is customized to work using PMU measurements."""
-	
-	nodes_num = len(system.nodes)
-	
-	pidx = numpy.where(zdata.mtype==2)
-	qidx = numpy.where(zdata.mtype==3)
-	pfidx = numpy.where(zdata.mtype==4)
-	qfidx = numpy.where(zdata.mtype==5)
-	vmagpmuidx = numpy.where(zdata.mtype==7)
-	vphasepmuidx = numpy.where(zdata.mtype==8)
-	imagpmuidx = numpy.where(zdata.mtype==9)
-	iphasepmuidx = numpy.where(zdata.mtype==10)
-	
-	npi = len(pidx[0])
-	nqi = len(qidx[0])
-	npf = len(pfidx[0])
-	nqf = len(qfidx[0])
-	nvpmu = len(vmagpmuidx[0])
-	nipmu = len(imagpmuidx[0])
-	
-	buspi = zdata.mfrom[pidx]
-	busqi = zdata.mfrom[qidx]
-	fbuspf = zdata.mfrom[pfidx]
-	tbuspf = zdata.mto[pfidx]
-	fbusqf = zdata.mfrom[qfidx]
-	busvpmu = zdata.mfrom[vmagpmuidx]
-	fbusipmu = zdata.mfrom[imagpmuidx]
-	tbusipmu = zdata.mto[imagpmuidx]
-	   
-	z = zdata.mval
-	Pinj = z[pidx]
-	Qinj = z[qidx]
-	Pbr = z[pfidx]
-	Qbr = z[qfidx]
+def DssePmu(nodes_num, measurements, Gmatrix, Bmatrix, Adj):
+	"""
+	Traditional state estimator
+	It performs state estimation using rectangular node voltage state variables 
+	and it is customized to work using PMU measurements
 
-	idx = numpy.where(zdata.mstddev<10**(-6))
-	zdata.mstddev[idx] = 10**(-6)
-	weights = zdata.mstddev**(-2)
-	W = numpy.diag(weights)
+	params: 
+	@nodes_num: number of nodes of the grid
+	@measurements: Vector of measurements in Input (voltages, currents, powers)
+	@Gmatrix
+	@Bmatrix
+	@Adj
+
+	return: np.array V - estimated voltages
+	"""
+	#calculate weights matrix (obtained as stdandard_deviations^-2)
+	weights = measurements.getWeightsMatrix()
+	W = np.diag(weights)
 	
-	Gmatrix = system.Ymatrix.real
-	Bmatrix = system.Ymatrix.imag
+	# Jacobian Matrix. Includes the derivatives of the measurements (voltages, currents, powers) with respect to the states (voltages)
+
+	#Jacobian for Power Injection Measurements
+	H2, H3 = calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, Adj)
+
+	#Jacobian for branch Power Measurements
+	H4, H5 = calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, type=1)
+
+	#Jacobian for branch Power Measurements
+	H7,H8 = calculateJacobiVoltagePmu(measurements, nodes_num, Gmatrix, Bmatrix)
+	W = update_W_matrix(measurements, weights, W, "Vpmu")
+
+	#Jacobian for Current Pmu Measurements 
+	H9,H10 = calculateJacobiCurrentPmu(measurements, nodes_num, Gmatrix, Bmatrix)
+	W = update_W_matrix(measurements, weights, W, "Ipmu")
+
+	#get an array with all measured values (affected by uncertainty)
+	z = measurements.getmVal()
+
+	H = np.concatenate((H2,H3,H4,H5,H7,H8,H9,H10),axis=0)
+	WH = np.inner(W,H.transpose())
+	G = np.inner(H.transpose(),WH.transpose())
+	Ginv = np.linalg.inv(G)
 	
-	""" Jacobian for Power Injection Measurements (converted to equivalent 
-	rectangualar current measurements) """
-	H2 = numpy.zeros((npi,2*nodes_num))
-	H3 = numpy.zeros((nqi,2*nodes_num))
-	for i in range(npi):
-		m = buspi[i] - 1
-		m2 = m + nodes_num
-		H2[i][m] = - Gmatrix[m][m]
-		H2[i][m2] = Bmatrix[m][m]
-		H3[i][m] = - Bmatrix[m][m]
-		H3[i][m2] = - Gmatrix[m][m]
-		idx = numpy.subtract(system.Adj[m],1)
-		H2[i][idx] = - Gmatrix[m][idx]
-		H3[i][idx] = - Bmatrix[m][idx]
-		idx2 = idx + nodes_num
-		H2[i][idx2] = Bmatrix[m][idx]
-		H3[i][idx2] = - Gmatrix[m][idx]
-		
-	""" Jacobian for branch Power Measurements (converted to equivalent 
-	rectangualar current measurements)"""
-	H4 = numpy.zeros((npf,2*nodes_num))
-	H5 = numpy.zeros((nqf,2*nodes_num))
-	for i in range(npf):
-		m = fbuspf[i]-1
-		n = tbuspf[i]-1
-		H4[i][m] = - Gmatrix[m][n]
-		H4[i][n] = Gmatrix[m][n]
-		H5[i][m] = - Bmatrix[m][n]
-		H5[i][n] = Bmatrix[m][n]
-		m2 = m + nodes_num
-		H4[i][m2] = Bmatrix[m][n]
-		H5[i][m2] = - Gmatrix[m][n]
-		n2 = n + nodes_num
-		H4[i][n2] = - Bmatrix[m][n]
-		H5[i][n2] = Gmatrix[m][n]
-		
-	""" Jacobian for Voltage Pmu Measurements (converted into rectangular) """
-	H7 = numpy.zeros((nvpmu,2*nodes_num))
-	H8 = numpy.zeros((nvpmu,2*nodes_num))
-	for i in range(nvpmu):
-		idx1 = vmagpmuidx[0][i]
-		idx2 = vphasepmuidx[0][i]
-		vamp = z[idx1]
-		vtheta = z[idx2]
-		z[idx1] = vamp*numpy.cos(vtheta)
-		z[idx2] = vamp*numpy.sin(vtheta)
-		rot_mat = numpy.array([[numpy.cos(vtheta), - vamp*numpy.sin(vtheta)], [numpy.sin(vtheta), vamp*numpy.cos(vtheta)]])
-		starting_cov = numpy.array([[weights[idx1], 0], [0, weights[idx2]]])
-		final_cov = numpy.inner(rot_mat,numpy.inner(starting_cov,rot_mat.transpose()))
-		W[idx1][idx1] = final_cov[0][0]
-		W[idx2][idx2] = final_cov[1][1]
-		W[idx1][idx2] = final_cov[0][1]
-		W[idx2][idx1] = final_cov[1][0]
-		m = busvpmu[i]-1
-		H7[i][m] = 1
-		m2 = m + nodes_num
-		H8[i][m2] = 1
-		
-	""" Jacobian for Current Pmu Measurements (converted into rectangular) """
-	H9 = numpy.zeros((nipmu,2*nodes_num))
-	H10 = numpy.zeros((nipmu,2*nodes_num))
-	for i in range(nipmu):
-		idx1 = imagpmuidx[0][i]
-		idx2 = iphasepmuidx[0][i]
-		iamp = z[idx1]
-		itheta = z[idx2]
-		z[idx1] = iamp*numpy.cos(itheta)
-		z[idx2] = iamp*numpy.sin(itheta)
-		rot_mat = numpy.array([[numpy.cos(itheta), - iamp*numpy.sin(itheta)], [numpy.sin(itheta), iamp*numpy.cos(itheta)]])
-		starting_cov = numpy.array([[weights[idx1], 0], [0, weights[idx2]]])
-		final_cov = numpy.inner(rot_mat,numpy.inner(starting_cov,rot_mat.transpose()))
-		W[idx1][idx1] = final_cov[0][0]
-		W[idx2][idx2] = final_cov[1][1]
-		W[idx1][idx2] = final_cov[0][1]
-		W[idx2][idx1] = final_cov[1][0]
-		m = fbusipmu[i]-1
-		n = tbusipmu[i]-1
-		H9[i][m] = - Gmatrix[m][n]
-		H9[i][n] = Gmatrix[m][n]
-		H10[i][m] = - Bmatrix[m][n]
-		H10[i][n] = Bmatrix[m][n]
-		m2 = m + nodes_num
-		n2 = n + nodes_num
-		H9[i][m2] = Bmatrix[m][n]
-		H9[i][n2] = - Bmatrix[m][n]
-		H10[i][m2] = - Gmatrix[m][n]
-		H10[i][n2] = Gmatrix[m][n]
-		
+	#get array which contains the index of measurements type MeasType.Sinj_real, MeasType.Sinj_imag in the array measurements.measurements
+	pidx = measurements.getIndexOfMeasurements(type=MeasType.Sinj_real)
+	qidx = measurements.getIndexOfMeasurements(type=MeasType.Sinj_imag)
+
+	#get array which contains the index of measurements type MeasType.S_real, MeasType.S_imag in the array measurements.measurements
+	p1br = measurements.getIndexOfMeasurements(type=MeasType.S1_real)
+	p2br = measurements.getIndexOfMeasurements(type=MeasType.S2_real)
+	q1br = measurements.getIndexOfMeasurements(type=MeasType.S1_imag)
+	q2br = measurements.getIndexOfMeasurements(type=MeasType.S2_imag)
+
+	#get an array with all measured values (affected by uncertainty)
+	z = measurements.getmVal()
+	
+	V = np.ones(nodes_num) + 1j*np.zeros(nodes_num)
+	State = np.concatenate((np.ones(nodes_num), np.zeros(nodes_num)), axis=0)
 	epsilon = 5
-	Vr = numpy.ones(nodes_num)
-	Vx = numpy.zeros(nodes_num)
-	V = Vr + 1j*Vx
 	num_iter = 0
 	
-	StateVr = numpy.ones(nodes_num)
-	StateVx = numpy.zeros(nodes_num)
-	State = numpy.concatenate((StateVr,StateVx),axis=0)
-	
-	H = numpy.concatenate((H2,H3,H4,H5,H7,H8,H9,H10),axis=0)
-	WH = numpy.inner(W,H.transpose())
-	G = numpy.inner(H.transpose(),WH.transpose())
-	Ginv = numpy.linalg.inv(G)
-	
+	# Iteration of Netwon Rapson method: needed to solve non-linear system of equation
 	while epsilon>10**(-6):
-		""" Computation of equivalent current measurements in place of the power measurements """
-		Irinj = (Pinj*V[buspi-1].real + Qinj*V[busqi-1].imag)/(numpy.absolute(V[buspi-1])**2)
-		Ixinj = (Pinj*V[buspi-1].imag - Qinj*V[busqi-1].real)/(numpy.absolute(V[buspi-1])**2)
-		z[pidx] = Irinj
-		z[qidx] = Ixinj
-		
-		Irbr = (Pbr*V[fbuspf-1].real + Qbr*V[fbusqf-1].imag)/(numpy.absolute(V[fbuspf-1])**2)
-		Ixbr = (Pbr*V[fbuspf-1].imag - Qbr*V[fbusqf-1].real)/(numpy.absolute(V[fbuspf-1])**2)
-		z[pfidx] = Irbr
-		z[qfidx] = Ixbr
-		
-		
-		""" WLS computation """
-		y = numpy.inner(H,State)
-		res = numpy.subtract(z,y)
-		g = numpy.inner(H.transpose(),numpy.inner(W,res))
 
-		Delta_State = numpy.inner(Ginv,g)
+		""" Computation of equivalent current measurements in place of the power measurements """
+		# in every iteration the input power measurements are converted into currents by dividing by the voltage estimated at the previous iteration
+		z = convertSinjMeasIntoCurrents(measurements, V, z, pidx, qidx)
+		z = convertSbranchMeasIntoCurrents(measurements, V, z, p1br, q1br, p2br, q2br)
+
+		""" WLS computation """
+		y = np.inner(H,State)
+		res = np.subtract(z,y)
+		g = np.inner(H.transpose(),np.inner(W,res))
+
+		Delta_State = np.inner(Ginv,g)
 		
 		State = State + Delta_State
-		epsilon = numpy.amax(numpy.absolute(Delta_State))
+		epsilon = np.amax(np.absolute(Delta_State))
 		
 		V.real = State[:nodes_num]
 		V.imag = State[nodes_num:]
@@ -435,244 +306,481 @@ def DssePmu(system, zdata):
 		
 	return V
 	
-def DsseMixed(system, measurements):
-	""" It performs state estimation using rectangular node voltage state variables
+def DsseMixed(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matrix, Adj):
+	"""
+	Traditional state estimator
+	It performs state estimation using rectangular node voltage state variables
 	and it is built to work in scenarios where both conventional and PMU measurements 
-	are simultaneously present."""
+	are simultaneously present.
+
+	params: 
+	@nodes_num: number of nodes of the grid
+	@measurements: Vector of measurements in Input (voltages, currents, powers)
+	@Gmatrix
+	@Bmatrix
+	@Yabs_matrix
+	@Yphase_matrix
+	@Adj
+
+	return: np.array V - estimated voltages
+	"""
+
+	#calculate weights matrix (obtained as stdandard_deviations^-2)
+	weights = measurements.getWeightsMatrix()
+	W = np.diag(weights)
 	
-	vidx = numpy.where(zdata.mtype==1)
-	pidx = numpy.where(zdata.mtype==2)
-	qidx = numpy.where(zdata.mtype==3)
-	pfidx = numpy.where(zdata.mtype==4)
-	qfidx = numpy.where(zdata.mtype==5)
-	iidx = numpy.where(zdata.mtype==6)
-	vmagpmuidx = numpy.where(zdata.mtype==7)
-	vphasepmuidx = numpy.where(zdata.mtype==8)
-	imagpmuidx = numpy.where(zdata.mtype==9)
-	iphasepmuidx = numpy.where(zdata.mtype==10)
+	# Jacobian Matrix. Includes the derivatives of the measurements (voltages, currents, powers) with respect to the states (voltages)
+
+	#Jacobian for Power Injection Measurements
+	H2, H3 = calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, Adj)
+
+	#Jacobian for branch Power Measurements
+	H4, H5 = calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, type=1)
+
+	#Jacobian for branch Power Measurements
+	H7,H8 = calculateJacobiVoltagePmu(measurements, nodes_num, Gmatrix, Bmatrix)
+	W = update_W_matrix(measurements, weights, W, "Vpmu")
+
+	#Jacobian for Current Pmu Measurements 
+	H9,H10 = calculateJacobiCurrentPmu(measurements, nodes_num, Gmatrix, Bmatrix)
+	W = update_W_matrix(measurements, weights, W, "Ipmu")
+
+	#get array which contains the index of measurements type V_mag and I_mag 
+	vidx = measurements.getIndexOfMeasurements(type=MeasType.V_mag)
+	iidx = measurements.getIndexOfMeasurements(type=MeasType.I_mag)
+	nvi = len(vidx)
+	nii = len(iidx)
+
+	#get array which contains the index of measurements type MeasType.Sinj_real, MeasType.Sinj_imag in the array measurements.measurements
+	pidx = measurements.getIndexOfMeasurements(type=MeasType.Sinj_real)
+	qidx = measurements.getIndexOfMeasurements(type=MeasType.Sinj_imag)
+
+	#get array which contains the index of measurements type MeasType.S_real, MeasType.S_imag in the array measurements.measurements
+	p1br = measurements.getIndexOfMeasurements(type=MeasType.S1_real)
+	p2br = measurements.getIndexOfMeasurements(type=MeasType.S2_real)
+	q1br = measurements.getIndexOfMeasurements(type=MeasType.S1_imag)
+	q2br = measurements.getIndexOfMeasurements(type=MeasType.S2_imag)
+
+	#get an array with all measured values (affected by uncertainty)
+	z = measurements.getmVal()
 	
-	#nvi = len(vidx[0])
-	#npi = len(pidx[0])
-	#nqi = len(qidx[0])
-	#npf = len(pfidx[0])
-	#nqf = len(qfidx[0])
-	#nii = len(iidx[0])
-	#nvpmu = len(vmagpmuidx[0])
-	#nipmu = len(imagpmuidx[0])
+	V = np.ones(nodes_num) + 1j*np.zeros(nodes_num)
+	State = np.concatenate((np.ones(nodes_num), np.zeros(nodes_num)), axis=0)
+	epsilon = 5
+	num_iter = 0
 	
-	#calculate number of measurements of each type
-	nvi, npi, nqi, npf, nqf, nii, nvpum, nipmu = measurements.getNumberOfMeasurements()
-	
-	busvi = zdata.mfrom[vidx]
-	buspi = zdata.mfrom[pidx]
-	busqi = zdata.mfrom[qidx]
-	fbuspf = zdata.mfrom[pfidx]
-	tbuspf = zdata.mto[pfidx]
-	fbusqf = zdata.mfrom[qfidx]
-	fbusiamp = zdata.mfrom[iidx]
-	tbusiamp = zdata.mto[iidx]
-	busvpmu = zdata.mfrom[vmagpmuidx]
-	fbusipmu = zdata.mfrom[imagpmuidx]
-	tbusipmu = zdata.mto[imagpmuidx]
-	   
-	#z = zdata.mval
-	#Pinj = z[pidx]
-	#Qinj = z[qidx]
-	#Pbr = z[pfidx]
-	#Qbr = z[qfidx]
-	
-	Pinj = measurements.getMeasuredActiveInjPowers()
-	Qinj = measurements.getMeasuredReactiveInjPowers()
-	Pbr = measurements.getMeasuredActiveBPowers()
-	Qbr = measurements.getMeasuredReactiveBPowers()
-	
-	#idx = numpy.where(zdata.mstddev<10**(-6))
-	#zdata.mstddev[idx] = 10**(-6)
-	#weights = zdata.mstddev**(-2)
-	#W = numpy.diag(weights)
-	# weights matrix is obtained as stdandard_deviations^-2
-	W = measurements.getWeightsMatrix()
-	
-	Gmatrix = system.Ymatrix.real
-	Bmatrix = system.Ymatrix.imag
-	Yabs_matrix = numpy.absolute(system.Ymatrix)
-	Yphase_matrix = numpy.angle(system.Ymatrix)
+	k = 0
+	# Iteration of Netwon Rapson method: needed to solve non-linear system of equation
+	while epsilon>10**(-6):
+		k = k+1
+		""" Computation of equivalent current measurements in place of the power measurements """
+		z = convertSinjMeasIntoCurrents(measurements, V, z, pidx, qidx)
+		z = convertSbranchMeasIntoCurrents(measurements, V, z, p1br, q1br, p2br, q2br)
+
+		""" Voltage Magnitude Measurements """
+		h1, H1 = update_h1_vector(measurements, V, vidx, nvi, nodes_num)
+
+		""" Power Injection Measurements """
+		h2 = np.inner(H2,State)
+		h3 = np.inner(H3,State)
+
+		""" Power Flow Measurements """
+		h4 = np.inner(H4,State)
+		h5 = np.inner(H5,State)
+
+		""" Current Magnitude Measurements """
+		h6, H6 = update_h6_vector(measurements, V, iidx, nii, Yabs_matrix, Yphase_matrix, nodes_num, num_iter)
 		
-	""" Jacobian for Power Injection Measurements (converted to equivalent 
-	rectangualar current measurements) """
-	H2 = numpy.zeros((npi,2*len(system.nodes)))
-	H3 = numpy.zeros((nqi,2*len(system.nodes)))
-	for i in range(npi):
-		m = buspi[i] - 1
-		m2 = m + len(system.nodes)
-		H2[i][m] = - Gmatrix[m][m]
-		H2[i][m2] = Bmatrix[m][m]
-		H3[i][m] = - Bmatrix[m][m]
-		H3[i][m2] = - Gmatrix[m][m]
-		idx = numpy.subtract(system.Adj[m],1)
-		H2[i][idx] = - Gmatrix[m][idx]
-		H3[i][idx] = - Bmatrix[m][idx]
-		idx2 = idx + len(system.nodes)
-		H2[i][idx2] = Bmatrix[m][idx]
-		H3[i][idx2] = - Gmatrix[m][idx]
+		""" PMU Voltage Measurements """
+		h7 = np.inner(H7,State)
+		h8 = np.inner(H8,State)
+
+		""" PMU Current Measurements """
+		h9 = np.inner(H9,State)
+		h10 = np.inner(H10,State)
+
+		""" WLS computation """
+		H = np.concatenate((H1,H2,H3,H4,H5,H6,H7,H8,H9,H10),axis=0)
+		y = np.concatenate((h1,h2,h3,h4,h5,h6,h7,h8,h9,h10),axis=0)
+		res = np.subtract(z,y)
+		g = np.inner(H.transpose(),np.inner(W,res))
+		WH = np.inner(W,H.transpose())
+		G = np.inner(H.transpose(),WH.transpose())
+		
+		Ginv = np.linalg.inv(G)
+		Delta_State = np.inner(Ginv,g)
+		
+		State = State + Delta_State
+		epsilon = np.amax(np.absolute(Delta_State))
+		
+		V.real = State[:nodes_num]
+		V.imag = State[nodes_num:]
 	
-	""" Jacobian for branch Power Measurements (converted to equivalent 
-	rectangualar current measurements)"""
-	H4 = numpy.zeros((npf,2*len(system.nodes)))
-	H5 = numpy.zeros((nqf,2*len(system.nodes)))
-	for i in range(npf):
-		m = fbuspf[i]-1
-		n = tbuspf[i]-1
+		num_iter = num_iter+1
+
+		#if k==4:
+		#	return H
+
+	return V
+	
+def calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, Adj):
+	""" 
+	It calculates the Jacobian for Power Injection Measurements 
+	(converted to equivalent rectangualar current measurements)
+	
+	params: 
+	@measurements: object of class Measurement that contains all measurements (voltages, currents, powers)
+	@nodes_num: len of system.nodes
+	@Gmatrix
+	@Bmatrix
+	@Adj
+	
+	return:
+	1. H2: Jacobian for Pinj
+	2. H3: Jacobian for Qinj
+	"""
+	
+	#get all measurements of type MeasType.Sinj_real
+	pinj_meas = measurements.getMeasurements(type=MeasType.Sinj_real)
+	#get all measurements of type MeasType.Sinj_real
+	qinj_meas = measurements.getMeasurements(type=MeasType.Sinj_imag)	
+	H2 = np.zeros((len(pinj_meas), 2*nodes_num))
+	H3 = np.zeros((len(qinj_meas), 2*nodes_num))
+	
+	for index, measurement in enumerate(pinj_meas):
+		m = measurement.element.index
+		m2 = m + nodes_num
+		H2[index][m] = - Gmatrix[m][m]
+		H2[index][m2] = Bmatrix[m][m]
+		H3[index][m] = - Bmatrix[m][m]
+		H3[index][m2] = - Gmatrix[m][m]
+		idx = np.subtract(Adj[m],1)
+		H2[index][idx] = - Gmatrix[m][idx]
+		H3[index][idx] = - Bmatrix[m][idx]
+		idx2 = idx + nodes_num
+		H2[index][idx2] = Bmatrix[m][idx]
+		H3[index][idx2] = - Gmatrix[m][idx]
+	
+	return H2, H3
+	
+def calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, type):
+	""" 
+	It calculates the Jacobian for branch Power Measurements
+	(converted to equivalent rectangualar current measurements)
+	Derivative of branch power flow(converted to current flow) with respect to voltage: it is the admittance. 
+	
+	params: 
+	@measurements: object of class Measurement that contains all measurements (voltages, currents, powers)
+	@nodes_num: len of system.nodes
+	@Gmatrix
+	@Bmatrix
+	@type: 1 for DssePmu and DssePmu, 2 for DsseTrad
+	
+	return:
+	1. H4: Jacobian for S_real
+	2. H5: Jacobian for S_imag
+	"""
+	if type==2:
+		nodes_num = nodes_num - 1
+	
+	#get all measurements of type MeasType.S_real and MeasType.S_imag
+	p1_meas = measurements.getMeasurements(type=MeasType.S1_real)
+	p2_meas = measurements.getMeasurements(type=MeasType.S2_real)
+	q1_meas = measurements.getMeasurements(type=MeasType.S1_imag)
+	q2_meas = measurements.getMeasurements(type=MeasType.S2_imag)
+
+	H4 = np.zeros((len(p1_meas)+len(p2_meas),2*nodes_num))
+	H5 = np.zeros((len(q1_meas)+len(q2_meas),2*nodes_num))
+	
+	for i, measurement in enumerate(p1_meas):
+		m = measurement.element.start_node.index
+		n = measurement.element.end_node.index
 		H4[i][m] = - Gmatrix[m][n]
 		H4[i][n] = Gmatrix[m][n]
 		H5[i][m] = - Bmatrix[m][n]
 		H5[i][n] = Bmatrix[m][n]
-		m2 = m + len(system.nodes)
-		H4[i][m2] = Bmatrix[m][n]
-		H5[i][m2] = - Gmatrix[m][n]
-		n2 = n + len(system.nodes)
-		H4[i][n2] = - Bmatrix[m][n]
-		H5[i][n2] = Gmatrix[m][n]
-		
-	""" Jacobian for Voltage Pmu Measurements (converted into rectangular) """
-	H7 = numpy.zeros((nvpmu,2*len(system.nodes)))
-	H8 = numpy.zeros((nvpmu,2*len(system.nodes)))
-	for i in range(nvpmu):
-		idx1 = vmagpmuidx[0][i]
-		idx2 = vphasepmuidx[0][i]
-		vamp = z[idx1]
-		vtheta = z[idx2]
-		z[idx1] = vamp*numpy.cos(vtheta)
-		z[idx2] = vamp*numpy.sin(vtheta)
-		rot_mat = numpy.array([[numpy.cos(vtheta), - vamp*numpy.sin(vtheta)], [numpy.sin(vtheta), vamp*numpy.cos(vtheta)]])
-		starting_cov = numpy.array([[weights[idx1], 0], [0, weights[idx2]]])
-		final_cov = numpy.inner(rot_mat,numpy.inner(starting_cov,rot_mat.transpose()))
-		W[idx1][idx1] = final_cov[0][0]
-		W[idx2][idx2] = final_cov[1][1]
-		W[idx1][idx2] = final_cov[0][1]
-		W[idx2][idx1] = final_cov[1][0]
-		m = busvpmu[i]-1
-		H7[i][m] = 1
-		m2 = m + len(system.nodes)
-		H8[i][m2] = 1
+		if type==1:
+			m2 = m + nodes_num
+			H4[i][m2] = Bmatrix[m][n]
+			H5[i][m2] = - Gmatrix[m][n]
+			n2 = n + nodes_num
+			H4[i][n2] = - Bmatrix[m][n]
+			H5[i][n2] = Gmatrix[m][n]
+		elif type==2:
+			if m>0:
+				m2 = m + nodes_num
+				H4[i][m2] = Bmatrix[m][n]
+				H5[i][m2] = - Gmatrix[m][n]
+			if n>0:
+				n2 = n + nodes_num
+				H4[i][n2] = - Bmatrix[m][n]
+				H5[i][n2] = Gmatrix[m][n]
 	
-	""" Jacobian for Current Pmu Measurements (converted into rectangular) """
-	H9 = numpy.zeros((nipmu,2*len(system.nodes)))
-	H10 = numpy.zeros((nipmu,2*len(system.nodes)))
-	for i in range(nipmu):
-		idx1 = imagpmuidx[0][i]
-		idx2 = iphasepmuidx[0][i]
-		iamp = z[idx1]
-		itheta = z[idx2]
-		z[idx1] = iamp*numpy.cos(itheta)
-		z[idx2] = iamp*numpy.sin(itheta)
-		rot_mat = numpy.array([[numpy.cos(itheta), - iamp*numpy.sin(itheta)], [numpy.sin(itheta), iamp*numpy.cos(itheta)]])
-		starting_cov = numpy.array([[weights[idx1], 0], [0, weights[idx2]]])
-		final_cov = numpy.inner(rot_mat,numpy.inner(starting_cov,rot_mat.transpose()))
-		W[idx1][idx1] = final_cov[0][0]
-		W[idx2][idx2] = final_cov[1][1]
-		W[idx1][idx2] = final_cov[0][1]
-		W[idx2][idx1] = final_cov[1][0]
-		m = fbusipmu[i]-1
-		n = tbusipmu[i]-1
-		H9[i][m] = - Gmatrix[m][n]
-		H9[i][n] = Gmatrix[m][n]
-		H10[i][m] = - Bmatrix[m][n]
-		H10[i][n] = Bmatrix[m][n]
-		m2 = m + len(system.nodes)
-		n2 = n + len(system.nodes)
-		H9[i][m2] = Bmatrix[m][n]
-		H9[i][n2] = - Bmatrix[m][n]
-		H10[i][m2] = - Gmatrix[m][n]
-		H10[i][n2] = Gmatrix[m][n]
-		
-	epsilon = 5
-	Vr = numpy.ones(len(system.nodes))
-	Vx = numpy.zeros(len(system.nodes))
-	V = Vr + 1j*Vx
-	#V = Real_to_all(Vr, Vx)
-	num_iter = 0
+	for i, measurement in enumerate(iterable=p2_meas, start=len(p1_meas)):
+		n = measurement.element.start_node.index
+		m = measurement.element.end_node.index
+		H4[i][m] = - Gmatrix[m][n]
+		H4[i][n] = Gmatrix[m][n]
+		H5[i][m] = - Bmatrix[m][n]
+		H5[i][n] = Bmatrix[m][n]
+		if type==1:
+			m2 = m + nodes_num
+			H4[i][m2] = Bmatrix[m][n]
+			H5[i][m2] = - Gmatrix[m][n]
+			n2 = n + nodes_num
+			H4[i][n2] = - Bmatrix[m][n]
+			H5[i][n2] = Gmatrix[m][n]
+		elif type==2:
+			if m>0:
+				m2 = m + nodes_num
+				H4[i][m2] = Bmatrix[m][n]
+				H5[i][m2] = - Gmatrix[m][n]
+			if n>0:
+				n2 = n + nodes_num
+				H4[i][n2] = - Bmatrix[m][n]
+				H5[i][n2] = Gmatrix[m][n]
 	
-	StateVr = numpy.ones(len(system.nodes))
-	StateVx = numpy.zeros(len(system.nodes))
-	State = numpy.concatenate((StateVr,StateVx),axis=0)
+	return H4, H5
 	
-	while epsilon>10**(-6):
-		""" Computation of equivalent current measurements in place of the power measurements """
-		Irinj = (Pinj*V[buspi-1].real + Qinj*V[busqi-1].imag)/(numpy.absolute(V[buspi-1])**2)
-		Ixinj = (Pinj*V[buspi-1].imag - Qinj*V[busqi-1].real)/(numpy.absolute(V[buspi-1])**2)
-		z[pidx] = Irinj
-		z[qidx] = Ixinj
-		
-		Irbr = (Pbr*V[fbuspf-1].real + Qbr*V[fbusqf-1].imag)/(numpy.absolute(V[fbuspf-1])**2)
-		Ixbr = (Pbr*V[fbuspf-1].imag - Qbr*V[fbusqf-1].real)/(numpy.absolute(V[fbuspf-1])**2)
-		z[pfidx] = Irbr
-		z[qfidx] = Ixbr
-		
-		""" Voltage Magnitude Measurements """
-		h1 = numpy.absolute(V[busvi-1])
-		H1 = numpy.zeros((nvi,2*len(system.nodes)))
-		for i in range(nvi):
-			m = busvi[i]-1
-			H1[i][m] = numpy.cos(numpy.angle(V[m]))
-			m2 = m + len(system.nodes)
-			H1[i][m2] = numpy.sin(numpy.angle(V[m]))
-				
-		""" Power Injection Measurements """
-		h2 = numpy.inner(H2,State)
-		h3 = numpy.inner(H3,State)
-		
-		""" Power Flow Measurements """
-		h4 = numpy.inner(H4,State)
-		h5 = numpy.inner(H5,State)
-		
-		""" Current Magnitude Measurements """
-		h6re = numpy.zeros((nii))
-		h6im = numpy.zeros((nii))
-		h6complex = numpy.zeros((nii),dtype=complex)
-		h6 = numpy.ones((nii))
-		H6 = numpy.zeros((nii,2*len(system.nodes)))
-		for i in range(nii):
-			m = fbusiamp[i]-1
-			n = tbusiamp[i]-1
-			h6re[i] = Yabs_matrix[m][n]*((V[n].real-V[m].real)*numpy.cos(Yphase_matrix[m][n]) + (V[m].imag-V[n].imag)*numpy.sin(Yphase_matrix[m][n]))
-			h6im[i] = Yabs_matrix[m][n]*((V[n].real-V[m].real)*numpy.sin(Yphase_matrix[m][n]) + (V[n].imag-V[m].imag)*numpy.cos(Yphase_matrix[m][n]))
-			h6complex[i] = h6re[i] + 1j*h6im[i]
-			if num_iter>0:
-				h6[i] = numpy.absolute(h6complex[i])
-			H6[i][m] = - Yabs_matrix[m][n]*(numpy.cos(Yphase_matrix[m][n])*h6re[i] + numpy.sin(Yphase_matrix[m][n])*h6im[i])/h6[i]
-			H6[i][n] = Yabs_matrix[m][n]*(numpy.cos(Yphase_matrix[m][n])*h6re[i] + numpy.sin(Yphase_matrix[m][n])*h6im[i])/h6[i]
-			m2 = m + len(system.nodes)
-			H6[i][m2] = - Yabs_matrix[m][n]*(numpy.cos(Yphase_matrix[m][n])*h6im[i] - numpy.sin(Yphase_matrix[m][n])*h6re[i])/h6[i]
-			n2 = n + len(system.nodes)
-			H6[i][n2] = Yabs_matrix[m][n]*(numpy.cos(Yphase_matrix[m][n])*h6im[i] - numpy.sin(Yphase_matrix[m][n])*h6re[i])/h6[i]
-		
-		""" PMU Voltage Measurements """
-		h7 = numpy.inner(H7,State)
-		h8 = numpy.inner(H8,State)
-		
-		""" PMU Current Measurements """
-		h9 = numpy.inner(H9,State)
-		h10 = numpy.inner(H10,State)
-		
-		""" WLS computation """
-		H = numpy.concatenate((H1,H2,H3,H4,H5,H6,H7,H8,H9,H10),axis=0)
-		y = numpy.concatenate((h1,h2,h3,h4,h5,h6,h7,h8,h9,h10),axis=0)
-		res = numpy.subtract(z,y)
-		g = numpy.inner(H.transpose(),numpy.inner(W,res))
-		WH = numpy.inner(W,H.transpose())
-		G = numpy.inner(H.transpose(),WH.transpose())
-		
-		Ginv = numpy.linalg.inv(G)
-		Delta_State = numpy.inner(Ginv,g)
-		
-		State = State + Delta_State
-		epsilon = numpy.amax(numpy.absolute(Delta_State))
-		
-		V.real = State[:len(system.nodes)]
-		V.imag = State[len(system.nodes):]
-		V = Vr + 1j*Vx
-		
-		num_iter = num_iter+1
+def calculateJacobiVoltagePmu(measurements, nodes_num, Gmatrix, Bmatrix):
+	""" 
+	It calculates the Jacobian for Voltage Pmu Measurements
+	(converted to equivalent rectangualar current measurements)
 	
-	return V
+	params: 
+	@measurements: object of class Measurement that contains all measurements (voltages, currents, powers)
+	@nodes_num: len of system.nodes
+	@Gmatrix
+	@Bmatrix
+	
+	return:
+	1. H7: Jacobian for S_real
+	2. H8: Jacobian for S_imag
+	"""
+	
+	#get all measurements of type MeasType.Vpmu_mag
+	Vpmu_mag_meas = measurements.getMeasurements(type=MeasType.Vpmu_mag)
+	#get all measurements of type MeasType.Vpmu_phase
+	Vpmu_phase_meas = measurements.getMeasurements(type=MeasType.Vpmu_phase)
+	H7 = np.zeros((len(Vpmu_mag_meas),2*nodes_num))
+	H8 = np.zeros((len(Vpmu_mag_meas),2*nodes_num))
+	
+	for index, measurement in enumerate(Vpmu_mag_meas):
+		vamp = measurement.meas_value
+		vtheta = Vpmu_phase_meas[index].meas_value
+		m = measurement.element.index
+		H7[index][m] = 1
+		m2 = m + nodes_num
+		H8[index][m2] = 1
+		
+	return H7, H8	
+	
+	
+def calculateJacobiCurrentPmu(measurements, nodes_num, Gmatrix, Bmatrix):
+	""" 
+	It calculates the Jacobian for Current Pmu Measurements
+	(converted to equivalent rectangualar current measurements)
+	
+	params: 
+	@measurements: object of class Measurement that contains all measurements (voltages, currents, powers)
+	@nodes_num: len of system.nodes
+	@Gmatrix
+	@Bmatrix
+	
+	return:
+	1. H9: Jacobian for S_real
+	2. H10: Jacobian for S_imag
+	"""
+	
+	#get all measurements of type MeasType.Ipmu_mag
+	Ipmu_mag_meas = measurements.getMeasurements(type=MeasType.Ipmu_mag)
+	#get all measurements of type MeasType.Vpmu_phase
+	Ipmu_phase_meas = measurements.getMeasurements(type=MeasType.Vpmu_phase)
+	H9 = np.zeros((len(Ipmu_mag_meas),2*nodes_num))
+	H10 = np.zeros((len(Ipmu_mag_meas),2*nodes_num))
+
+	for index, measurement in enumerate(Ipmu_mag_meas):
+		iamp = measurement.meas_value
+		itheta = Ipmu_phase_meas[index].meas_value
+		m = measurement.element.start_node.index
+		n = measurement.element.end_node.index
+		H9[index][m] = - Gmatrix[m][n]
+		H9[index][n] = Gmatrix[m][n]
+		H10[index][m] = - Bmatrix[m][n]
+		H10[index][n] = Bmatrix[m][n]
+		m2 = m + nodes_num
+		n2 = n + nodes_num
+		H9[index][m2] = Bmatrix[m][n]
+		H9[index][n2] = - Bmatrix[m][n]
+		H10[index][m2] = - Gmatrix[m][n]
+		H10[index][n2] = Gmatrix[m][n]
+		
+	return H9, H10	
+	
+def update_W_matrix(measurements, weights, W, type):
+	"""
+	adds to the matrix W the values related to pmu measurements (Vpmu or Ipmu)
+	
+	params:
+	@measurements: object of class Measurement that contains all measurements (voltages, currents, powers)
+	@weights: weights matrix
+	@W: np.diag(weights)
+	@type: "Vpmu" or "Ipmu"
+	
+	return: updated W matrix
+	"""
+
+	if type == "Vpmu":
+		#get index of all measurements of type "MeasType.Vpmu_mag" in the array Measurents_set.measurements
+		index_mag = measurements.getIndexOfMeasurements(MeasType.Vpmu_mag)
+		#get index of all measurements of type "MeasType.Vpmu_phase" in the array Measurents_set.measurements
+		index_phase = measurements.getIndexOfMeasurements(MeasType.Vpmu_phase)
+	elif type == "Ipmu":
+		#get index of all measurements of type "MeasType.Ipmu_mag" in the array Measurents_set.measurements
+		index_mag = measurements.getIndexOfMeasurements(MeasType.Ipmu_mag)
+		#get index of all measurements of type "MeasType.Ipmu_phase" in the array Measurents_set.measurements
+		index_phase = measurements.getIndexOfMeasurements(MeasType.Ipmu_phase)
+
+	for index, (idx_mag, idx_theta) in enumerate(zip(index_mag, index_phase)):
+		value_amp = measurements.measurements[idx_mag].mval
+		value_theta = measurements.measurements[idx_theta].mval
+		rot_mat = np.array([[np.cos(value_theta), - value_amp*np.sin(value_theta)], [np.sin(value_theta), value_amp*np.cos(value_theta)]])
+		starting_cov = np.array([[weights[idx_mag], 0], [0, weights[idx_theta]]])
+		final_cov = np.inner(rot_mat,np.inner(starting_cov, rot_mat.transpose()))
+		W[idx_mag][idx_mag] = final_cov[0][0]
+		W[idx_theta][idx_theta] = final_cov[1][1]
+		W[idx_mag][idx_theta] = final_cov[0][1]
+		W[idx_theta][idx_mag] = final_cov[1][0]
+		
+	return W
+
+def update_h1_vector(measurements, V, vidx, nvi, nodes_num):
+	"""
+	update h1 and H1 vectors
+
+	params:
+	@measurements: Vector of measurements in Input (voltages, currents, powers)
+	@V: vector of the estimated voltages
+	@vidx: array which contains the index of measurements type V_mag in measurements.measurements
+	@nvi: len of vidx
+	@nodes_num: number of nodes of the grid - len(system.nodes)
+
+	return: vector h1 and H1
+	"""
+
+	""" Voltage Magnitude Measurements """
+	h1 = np.zeros(nvi)
+	H1 = np.zeros((nvi, 2*nodes_num))
+	for i, index_vmag in enumerate(vidx):
+		#get index of the node
+		node_index = measurements.measurements[index_vmag].element.index
+		h1[i] = np.absolute(V[node_index])
+		H1[i][node_index] = np.cos(np.angle(V[node_index]))
+		m2 = node_index + nodes_num
+		H1[i][m2] = np.sin(np.angle(V[node_index]))
+	return h1, H1
+
+def update_h6_vector(measurements, V, iidx, nii, Yabs_matrix, Yphase_matrix, nodes_num, num_iter):
+	"""
+	update h6 and H6 vectors
+
+	params:
+	@measurements: Vector of measurements in Input (voltages, currents, powers)
+	@V: vector of the estimated voltages
+	@iidx: array which contains the index of measurements type I_mag in measurements.measurements
+	@nii: len of iidx
+	@Yabs_matrix: 
+	@Yphase_matrix:
+	@nodes_num: number of nodes of the grid - len(system.nodes)
+	@num_iter: number of current iteration
+
+	return: vector h6 and H6
+	"""
+
+	""" Current Magnitude Measurements """
+	h6re = np.zeros((nii))
+	h6im = np.zeros((nii))
+	h6complex = np.zeros((nii), dtype=complex)
+	h6 = np.ones((nii))
+	H6 = np.zeros((nii,2*nodes_num))
+	for i, index_imag  in enumerate(iidx):
+		#get index of the start node
+		m = measurements.measurements[index_imag].element.start_node.index
+		#get index of the end node
+		n = measurements.measurements[index_imag].element.end_node.index
+		h6re[i] = Yabs_matrix[m][n]*((V[n].real-V[m].real)*np.cos(Yphase_matrix[m][n]) + (V[m].imag-V[n].imag)*np.sin(Yphase_matrix[m][n]))
+		h6im[i] = Yabs_matrix[m][n]*((V[n].real-V[m].real)*np.sin(Yphase_matrix[m][n]) + (V[n].imag-V[m].imag)*np.cos(Yphase_matrix[m][n]))
+		h6complex[i] = h6re[i] + 1j*h6im[i]
+		if num_iter>0:
+			h6[i] = np.absolute(h6complex[i])
+		H6[i][m] = - Yabs_matrix[m][n]*(np.cos(Yphase_matrix[m][n])*h6re[i] + np.sin(Yphase_matrix[m][n])*h6im[i])/h6[i]
+		H6[i][n] = Yabs_matrix[m][n]*(np.cos(Yphase_matrix[m][n])*h6re[i] + np.sin(Yphase_matrix[m][n])*h6im[i])/h6[i]
+		m2 = m + nodes_num
+		H6[i][m2] = - Yabs_matrix[m][n]*(np.cos(Yphase_matrix[m][n])*h6im[i] - np.sin(Yphase_matrix[m][n])*h6re[i])/h6[i]
+		n2 = n + nodes_num
+		H6[i][n2] = Yabs_matrix[m][n]*(np.cos(Yphase_matrix[m][n])*h6im[i] - np.sin(Yphase_matrix[m][n])*h6re[i])/h6[i]
+
+	return h6, H6
+
+def convertSinjMeasIntoCurrents(measurements, V, z, pidx, qidx):
+	"""
+	In every iteration the input power measurements are converted into currents 
+	by dividing by the voltage estimated at the previous iteration and this values
+	are replaced in the array z
+
+	params:
+	@measurements: Vector of measurements in Input (voltages, currents, powers)
+	@V: vector of the estimated voltages
+	@z: array with all measured values (affected by uncertainty) --> Measurents_set.getmVal
+	@pidx: array which contains the index of measurements type Sinj_real in measurements.measurements
+	@qidx: array which contains the index of measurements type Sinj_imag in measurements.measurements
+
+	returns: updated z array
+	"""
+	for p_index, q_index in zip(pidx, qidx):
+		#get values of the measurements p_inj and q_inj   (affected by uncertainty-->mval)
+		p_inj = measurements.measurements[p_index].mval
+		q_inj = measurements.measurements[q_index].mval
+		#get index of the node
+		node_index = measurements.measurements[p_index].element.index	# == measurements.measurements[q_index].element.index
+		z[p_index] = (p_inj*V[node_index].real + q_inj*V[node_index].imag)/(np.absolute(V[node_index])**2)
+		z[q_index] = (p_inj*V[node_index].imag - q_inj*V[node_index].real)/(np.absolute(V[node_index])**2)
+
+	return z
+
+def convertSbranchMeasIntoCurrents(measurements, V, z, p1br, q1br, p2br, q2br):
+	"""
+	In every iteration the input power measurements are converted into currents 
+	by dividing by the voltage estimated at the previous iteration and this values
+	are replaced in the array z
+
+	params:
+	@measurements: Vector of measurements in Input (voltages, currents, powers)
+	@V: vector of the estimated voltages
+	@z: array with all measured values (affected by uncertainty) --> Measurents_set.getmVal
+	@p1br: array which contains the index of measurements type S1_real in measurements.measurements
+	@q1br: array which contains the index of measurements type S1_imag in measurements.measurements
+	@p2br: array which contains the index of measurements type S2_real in measurements.measurements
+	@q2br: array which contains the index of measurements type S2_imag in measurements.measurements
+	
+	returns: updated z array
+	"""
+	for pbr_index, qbr_index in zip(p1br, q1br):
+		#get values of the measurements pbr_inj and qbr_inj   (affected by uncertainty-->mval)
+		p_br = measurements.measurements[pbr_index].mval
+		q_br = measurements.measurements[qbr_index].mval
+		#get index of the start node
+		node_index = measurements.measurements[pbr_index].element.start_node.index	# == measurements.measurements[qbr_index].element.start_node.index
+		z[pbr_index] = (p_br*V[node_index].real + q_br*V[node_index].imag)/(np.absolute(V[node_index])**2)
+		z[qbr_index] = (p_br*V[node_index].imag - q_br*V[node_index].real)/(np.absolute(V[node_index])**2)
+
+	for pbr_index, qbr_index in zip(p2br, q2br):
+		#get values of the measurements pbr_inj and qbr_inj   (affected by uncertainty-->mval)
+		p_br = measurements.measurements[pbr_index].mval
+		q_br = measurements.measurements[qbr_index].mval
+		#get index of the start node
+		node_index = measurements.measurements[pbr_index].element.end_node.index	# == measurements.measurements[qbr_index].element.start_node.index
+		z[pbr_index] = (p_br*V[node_index].real + q_br*V[node_index].imag)/(np.absolute(V[node_index])**2)
+		z[qbr_index] = (p_br*V[node_index].imag - q_br*V[node_index].real)/(np.absolute(V[node_index])**2)
+
+	return z

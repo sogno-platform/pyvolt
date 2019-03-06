@@ -167,7 +167,7 @@ class PowerflowResults():
 		for branch in self.branches:
 			S2 = np.append(S2, branch.power2)
 		return S2
-		
+			
 def solve(system):
 	"""It performs Power Flow by using rectangular node voltage state variables."""
 	
@@ -255,58 +255,3 @@ def solve(system):
 	results.calculateS2()
 	
 	return results, num_iter
-	
-def calculateI(system, V):
-	"""
-	To calculate the branch currents
-	"""
-	Ymatrix, Adj = Ymatrix_calc(system)
-	I = np.zeros((len(system.branches)), dtype=np.complex)
-	for idx in range(len(system.branches)):
-		fr = system.branches[idx].start_node.index
-		to = system.branches[idx].end_node.index
-		I[idx] = - (V[fr] - V[to])*Ymatrix[fr][to]
-	
-	return I
-		
-def calculateInj(system, I):
-	"""
-	To calculate current injections at a node
-	"""
-	Iinj = np.zeros((len(system.nodes)), dtype=np.complex)
-	for k in range(0, (len(system.nodes))):
-		to=[]
-		fr=[]
-		for m in range(len(system.branches)):
-			if k==system.branches[m].start_node.index:
-				fr.append(m)
-			if k==system.branches[m].end_node.index:
-				to.append(m)
-		Iinj[k] = np.sum(I[to]) - np.sum(I[fr])
-	
-	return Iinj
-
-def calculateS1(system, V, I):
-	"""
-	To calculate powerflow on branches
-	"""
-	S1 = np.zeros((len(system.branches)), dtype=np.complex)
-	for i in range(0, len(system.branches)):
-		S1[i] = V[system.branches[i].start_node.index]*(np.conj(I[i]))
-	return S1
-	
-def calculateS2(system, V, I):
-	"""
-	To calculate powerflow on branches
-	"""
-	S2 = np.zeros((len(system.branches)), dtype=np.complex)
-	for i in range(0, len(system.branches)):
-		S2[i] = -V[system.branches[i].end_node.index]*(np.conj(I[i]))
-	return S2
-	
-def calculateSinj(V, Iinj):
-	"""
-	To calculate power injection at a node
-	"""
-	Sinj = np.multiply(V, np.conj(Iinj))
-	return Sinj
