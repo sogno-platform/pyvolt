@@ -1,4 +1,5 @@
 from enum import Enum
+import json
 import numpy as np
 
 class ElemType(Enum):
@@ -54,6 +55,98 @@ class Measurents_set():
 		"""
 		self.measurements.append(Measurement(element, element_type, meas_type, meas_value, std_dev))
 	
+	def read_measurements_from_file(self, powerflow_results, file_name):
+		with open(file_name) as json_file:
+    		data = json.load(json_file)
+
+		for key, value in data['Measurement'].items():
+			if key=="Vmag":
+				unc = float(value['unc'])
+				for index in value['idx']:
+					element = powerflow_results.nodes[index-1].topology_node
+					meas_value = np.abs(powerflow_results.nodes[index-1].voltage)
+					#std_dev = (unc/300)*meas_value
+					std_dev = (unc/300)
+					self.create_measurement(element, ElemType.Node, MeasType.V_mag, meas_value, std_dev)
+			elif key=="Imag":
+				unc = float(value['unc'])
+				for index in value['idx']:
+					element = powerflow_results.nodes[index-1].topology_branch
+					meas_value =np.abs(powerflow_results.branches[index-1].current)
+					#std_dev = (unc/300)*meas_value
+					std_dev = (unc/300)
+					self.create_measurement(element, ElemType.Branch, MeasType.I_mag, meas_value, std_dev)
+			elif key=="Pinj":
+				unc = float(value['unc'])
+				for index in value['idx']:
+					element = powerflow_results.nodes[index-1].topology_node
+					meas_value = powerflow_results.nodes[index-1].power.real
+					#std_dev = (unc/300)*meas_value
+					std_dev = (unc/300)
+					self.create_measurement(element, ElemType.Node, MeasType.Sinj_real, meas_value, std_dev)
+			elif key=="Qinj":
+				unc = float(value['unc'])
+				for index in value['idx']:
+					element = powerflow_results.nodes[index-1].topology_node
+					meas_value = powerflow_results.nodes[index-1].power.imag
+					#std_dev = (unc/300)*meas_value
+					std_dev = (unc/300)
+					self.create_measurement(element, ElemType.Node, MeasType.Sinj_imag, meas_value, std_dev)
+			elif key=="P1":
+				unc = float(value['unc'])
+				for index in value['idx']:
+					element = powerflow_results.nodes[index-1].topology_branch
+					meas_value = powerflow_results.branches[index-1].power.real
+					#std_dev = (unc/300)*meas_value
+					std_dev = (unc/300)
+					self.create_measurement(element, ElemType.Branch, MeasType.S1_real, meas_value, std_dev)
+			elif key=="Q1":
+				unc = float(value['unc'])
+				for index in value['idx']:
+					element = powerflow_results.nodes[index-1].topology_branch
+					meas_value = powerflow_results.branches[index-1].power.imag
+					#std_dev = (unc/300)*meas_value
+					std_dev = (unc/300)
+					self.create_measurement(element, ElemType.Branch, MeasType.S1_imag, meas_value, std_dev)
+			elif key=="P2":
+				unc = float(value['unc'])
+				for index in value['idx']:
+					element = powerflow_results.nodes[index-1].topology_branch
+					meas_value = powerflow_results.branches[index-1].power2.real
+					#std_dev = (unc/300)*meas_value
+					std_dev = (unc/300)
+					self.create_measurement(element, ElemType.Branch, MeasType.S2_real, meas_value, std_dev)
+			elif key=="Q2":
+				unc = float(value['unc'])
+				for index in value['idx']:
+					element = powerflow_results.nodes[index-1].topology_branch
+					meas_value = powerflow_results.branches[index-1].power2.imag
+					#std_dev = (unc/300)*meas_value
+					std_dev = (unc/300)
+					self.create_measurement(element, ElemType.Branch, MeasType.S2_imag, meas_value, std_dev)
+			elif key=="Vpmu":
+				unc_mag = float(value['unc_mag'])
+				unc_phase = float(value['unc_phase'])
+				for index in value['idx']:
+					element = powerflow_results.nodes[index-1].topology_node
+					meas_value_mag = np.abs(powerflow_results.nodes[index-1].voltage)
+					meas_value_phase = np.angle(powerflow_results.nodes[index-1].voltage)
+					std_dev_mag = (unc_mag/300)
+					std_dev_phase = (unc_phase/300)
+					self.create_measurement(element, ElemType.Node, MeasType.Vpmu_mag, meas_value_mag, std_dev_mag)
+					self.create_measurement(element, ElemType.Node, MeasType.Vpmu_phase, meas_value_phase, std_dev_phase)
+			elif key=="Ipmu":
+				unc_mag = float(value['unc_mag'])
+				unc_phase = float(value['unc_phase'])
+				for index in value['idx']:
+					element = powerflow_results.nodes[index-1].topology_branch
+					meas_value_mag =np.abs(powerflow_results.branches[index-1].current)
+					meas_value_phase =np.angle(powerflow_results.branches[index-1].current)
+					std_dev_mag = (unc_mag/300)
+					std_dev_phase = (unc_phase/300)
+					self.create_measurement(element, ElemType.Branch, MeasType.Ipmu_mag, meas_value_mag, std_dev_mag)
+					self.create_measurement(element, ElemType.Branch, MeasType.Ipmu_phase, meas_value_phase, std_dev_phase)
+
 	def meas_creation(self):
 		""" 
 		It calculates the measured values (affected by uncertainty) at the measurement points

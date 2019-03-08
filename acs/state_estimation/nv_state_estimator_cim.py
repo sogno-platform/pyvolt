@@ -1,4 +1,3 @@
-import sys
 import numpy as np
 from results import Results
 from measurement import *
@@ -114,7 +113,7 @@ def DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matr
 		z = convertSbranchMeasIntoCurrents(measurements, V, z, p1br, q1br, p2br, q2br)
 
 		""" Voltage Magnitude Measurements """
-		h1, H1 = update_h1_vector(measurements, V, vidx, nvi, nodes_num, type==2)
+		h1, H1 = update_h1_vector(measurements, V, vidx, nvi, nodes_num, type=2)
 				
 		""" Power Injection Measurements """
 		# h(x) vector where power injections are present
@@ -127,7 +126,7 @@ def DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matr
 		h5 = np.inner(H5,State)
 		
 		""" Current Magnitude Measurements """
-		h6, H6 = update_h6_vector(measurements, V, iidx, nii, Yabs_matrix, Yphase_matrix, nodes_num, num_iter, type==2)
+		h6, H6 = update_h6_vector(measurements, V, iidx, nii, Yabs_matrix, Yphase_matrix, nodes_num, num_iter, type=2)
 		
 		""" WLS computation """
 		# all the sub-matrixes of H calcualted so far are merged in a unique matrix
@@ -177,7 +176,7 @@ def DssePmu(nodes_num, measurements, Gmatrix, Bmatrix, Adj):
 	W = np.diag(weights)
 	
 	#Jacobian for Power Injection Measurements
-	H2, H3 = calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, Adj, type==1)
+	H2, H3 = calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, Adj, type=1)
 
 	#Jacobian for branch Power Measurements
 	H4, H5 = calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, type=1)
@@ -265,7 +264,7 @@ def DsseMixed(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_mat
 	# Jacobian Matrix. Includes the derivatives of the measurements (voltages, currents, powers) with respect to the states (voltages)
 
 	#Jacobian for Power Injection Measurements
-	H2, H3 = calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, Adj, type==1)
+	H2, H3 = calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, Adj, type=1)
 
 	#Jacobian for branch Power Measurements
 	H4, H5 = calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, type=1)
@@ -311,7 +310,7 @@ def DsseMixed(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_mat
 		z = convertSbranchMeasIntoCurrents(measurements, V, z, p1br, q1br, p2br, q2br)
 
 		""" Voltage Magnitude Measurements """
-		h1, H1 = update_h1_vector(measurements, V, vidx, nvi, nodes_num, type==1)
+		h1, H1 = update_h1_vector(measurements, V, vidx, nvi, nodes_num, type=1)
 
 		""" Power Injection Measurements """
 		h2 = np.inner(H2,State)
@@ -322,7 +321,7 @@ def DsseMixed(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_mat
 		h5 = np.inner(H5,State)
 
 		""" Current Magnitude Measurements """
-		h6, H6 = update_h6_vector(measurements, V, iidx, nii, Yabs_matrix, Yphase_matrix, nodes_num, num_iter, type==1)
+		h6, H6 = update_h6_vector(measurements, V, iidx, nii, Yabs_matrix, Yphase_matrix, nodes_num, num_iter, type=1)
 		
 		""" PMU Voltage Measurements """
 		h7 = np.inner(H7,State)
@@ -374,7 +373,6 @@ def calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, Adj, ty
 	pinj_meas = measurements.getMeasurements(type=MeasType.Sinj_real)
 	#get all measurements of type MeasType.Sinj_real
 	qinj_meas = measurements.getMeasurements(type=MeasType.Sinj_imag)	
-	
 	if type == 1:
 		H2 = np.zeros((len(pinj_meas), 2*nodes_num))
 		H3 = np.zeros((len(qinj_meas), 2*nodes_num))
@@ -504,6 +502,7 @@ def calculateJacobiVoltagePmu(measurements, nodes_num, Gmatrix, Bmatrix):
 	H7 = np.zeros((len(Vpmu_mag_meas),2*nodes_num))
 	H8 = np.zeros((len(Vpmu_mag_meas),2*nodes_num))
 	
+	#TODO: index of Vmag = index of Vphase???
 	for index, measurement in enumerate(Vpmu_mag_meas):
 		vamp = measurement.meas_value
 		vtheta = Vpmu_phase_meas[index].meas_value
@@ -668,11 +667,11 @@ def update_h6_vector(measurements, V, iidx, nii, Yabs_matrix, Yphase_matrix, nod
 			H6[i][n2] = Yabs_matrix[m][n]*(np.cos(Yphase_matrix[m][n])*h6im[i] - np.sin(Yphase_matrix[m][n])*h6re[i])/h6[i]
 		if type==2:
 			if m > 0:
-                m2 = m + node.num-1
-                H6[i][m2] = - Yabs_matrix[m][n]*(np.cos(Yphase_matrix[m][n])*h6im[i] - np.sin(Yphase_matrix[m][n])*h6re[i])/h6[i]
-            if n > 0:
-                n2 = n + node.num-1
-                H6[i][n2] = Yabs_matrix[m][n]*(np.cos(Yphase_matrix[m][n])*h6im[i] - np.sin(Yphase_matrix[m][n])*h6re[i])/h6[i]
+				m2 = m + node.num-1
+				H6[i][m2] = - Yabs_matrix[m][n]*(np.cos(Yphase_matrix[m][n])*h6im[i] - np.sin(Yphase_matrix[m][n])*h6re[i])/h6[i]
+			if n > 0:
+				n2 = n + node.num-1
+				H6[i][n2] = Yabs_matrix[m][n]*(np.cos(Yphase_matrix[m][n])*h6im[i] - np.sin(Yphase_matrix[m][n])*h6re[i])/h6[i]
 			
 	return h6, H6
 
