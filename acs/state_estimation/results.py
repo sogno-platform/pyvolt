@@ -1,4 +1,5 @@
 import numpy as np
+import cmath
 
 class ResultsNode():
 	def __init__(self, topo_node):		
@@ -41,7 +42,27 @@ class Results():
 			for elem in self.nodes:
 				if elem.topology_node.index == index:
 					elem.voltage = V[index]
-					
+
+	def load_voltages_from_dict(self, V):
+		"""
+		load the voltages of V-dict 
+		"""
+		for key, value in V.items():
+			for elem in self.nodes:
+				if elem.topology_node.index == index:
+					elem.voltage = V[index]
+
+	def calculate_all(self):
+		"""
+		calculate all quantities of the grid
+		"""
+		self.calculateI()
+		self.calculateIinj()
+		self.calculateSinj()
+		self.calculateIinj()
+		self.calculateS1()
+		self.calculateS2()
+
 	def calculateI(self):
 		"""
 		To calculate the branch currents
@@ -92,13 +113,21 @@ class Results():
 				if branch_index == node.topology_node.index:
 					branch.power2 = -node.voltage*(np.conj(branch.current))
 	
-	def get_node(self, index):
+	def get_node(self, index=None, uuid=None):
 		"""
 		return the PowerflowNode with PowerflowNode.topology_node.index == index
+		returns a node with a certain uuid or a certain index (not both!):
+		- if index in not None --> return the PowerflowNode with PowerflowNode.topology_node.index == index
+		- if uuid in not None --> return the PowerflowNode with PowerflowNode.topology_node.uuid == uuid
 		"""
-		for node in self.nodes:
-			if index == node.topology_node.index:
-				return node
+		if index is not None:
+			for node in self.nodes:
+				if index == node.topology_node.index:
+					return node
+		elif uuid is not None:
+			for node in self.nodes:
+				if uuid == node.topology_node.uuid:
+					return node
 				
 	def get_voltages(self):
 		"""
@@ -160,3 +189,10 @@ class Results():
 		for branch in self.branches:
 			S2 = np.append(S2, branch.power2)
 		return S2
+
+	def print_voltages_polar(self):
+		"""
+		for test purposes
+		"""
+		for node in self.nodes:
+			print(node.topology_node.uuid + ": " + str(cmath.polar(node.voltage)))

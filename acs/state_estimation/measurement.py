@@ -1,4 +1,5 @@
 from enum import Enum
+import json
 import numpy as np
 
 class ElemType(Enum):
@@ -20,14 +21,14 @@ class MeasType(Enum):
 	S2_imag = 12						#Reactive Power flow at branch, measured at final node (S2.imag)
 
 class Measurement():
-	def __init__(self, element, element_type, meas_type, meas_value, std_dev):
+	def __init__(self, element, element_type, meas_type, meas_value, unc):
 		"""
 		Creates a measurement, which is used by the estimation module. Possible types of measurements are: v, p, q, i, Vpmu and Ipmu
 		@element: pointer to measured element
 		@element_type: Clarifies which element is measured.
 		@meas_type: 
 		@meas_value: measurement value.
-		@std_dev: standard deviation in the same unit as the measurement.
+		@unc: Measurement uncertainty in percent
 		"""
 		
 		if not isinstance(element_type, ElemType):
@@ -40,33 +41,123 @@ class Measurement():
 		self.element_type = element_type
 		self.meas_type = meas_type
 		self.meas_value = meas_value
-		self.std_dev = std_dev
-		self.std_dev = std_dev
+		if meas_type not in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
+			self.std_dev = meas_value*unc/100
+		elif meas_type in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
+			self.std_dev = unc/100
 		self.mval = 0.0					#measured values (affected by uncertainty)
 
 class Measurents_set():
 	def __init__(self):
 		self.measurements = []			#array with all measurements
 		
-	def create_measurement(self, element, element_type, meas_type, meas_value, std_dev):
+	def create_measurement(self, element, element_type, meas_type, meas_value, unc):
 		"""
 		to add elements to the measurements array
 		"""
-		self.measurements.append(Measurement(element, element_type, meas_type, meas_value, std_dev))
+		self.measurements.append(Measurement(element, element_type, meas_type, meas_value, unc))
 	
-	def meas_creation(self):
+	def read_measurements_from_file(self, powerflow_results, file_name):
+		"""
+		read measurements from file.
+
+		@param powerflow_results 
+		@param file_name
+		"""
+		with open(file_name) as json_file:
+			data = json.load(json_file)
+
+		for key, value in data['Measurement'].items():
+			if key=="Vmag":
+				unc = float(value['unc'])
+				for index in value['idx']:
+					element = powerflow_results.nodes[index-1].topology_node
+					meas_value = np.abs(powerflow_results.nodes[index-1].voltage)
+					self.create_measurement(element, ElemType.Node, MeasType.V_mag, meas_value, unc)
+			elif key=="Imag":
+				unc = float(value['unc'])
+				for index in value['idx']:
+					element = powerflow_results.nodes[index-1].topology_branch
+					meas_value =np.abs(powerflow_results.branches[index-1].current)
+					self.create_measurement(element, ElemType.Branch, MeasType.I_mag, meas_value, unc)
+			elif key=="Pinj":
+				unc = float(value['unc'])
+				for index in value['idx']:
+					element = powerflow_results.nodes[index-1].topology_node
+					meas_value = powerflow_results.nodes[index-1].power.real
+					self.create_measurement(element, ElemType.Node, MeasType.Sinj_real, meas_value, unc)
+			elif key=="Qinj":
+				unc = float(value['unc'])
+				for index in value['idx']:
+					element = powerflow_results.nodes[index-1].topology_node
+					meas_value = powerflow_results.nodes[index-1].power.imag
+					self.create_measurement(element, ElemType.Node, MeasType.Sinj_imag, meas_value, unc)
+			elif key=="P1":
+				unc = float(value['unc'])
+				for index in value['idx']:
+					element = powerflow_results.nodes[index-1].topology_branch
+					meas_value = powerflow_results.branches[index-1].power.real
+					self.create_measurement(element, ElemType.Branch, MeasType.S1_real, meas_value, unc)
+			elif key=="Q1":
+				unc = float(value['unc'])
+				for index in value['idx']:
+					element = powerflow_results.nodes[index-1].topology_branch
+					meas_value = powerflow_results.branches[index-1].power.imag
+					self.create_measurement(element, ElemType.Branch, MeasType.S1_imag, meas_value, unc)
+			elif key=="P2":
+				unc = float(value['unc'])
+				for index in value['idx']:
+					element = powerflow_results.nodes[index-1].topology_branch
+					meas_value = powerflow_results.branches[index-1].power2.real
+					self.create_measurement(element, ElemType.Branch, MeasType.S2_real, meas_value, unc)
+			elif key=="Q2":
+				unc = float(value['unc'])
+				for index in value['idx']:
+					element = powerflow_results.nodes[index-1].topology_branch
+					meas_value = powerflow_results.branches[index-1].power2.imag
+					self.create_measurement(element, ElemType.Branch, MeasType.S2_imag, meas_value, unc)
+			elif key=="Vpmu":
+				unc_mag = float(value['unc_mag'])
+				unc_phase = float(value['unc_phase'])
+				for index in value['idx']:
+					element = powerflow_results.nodes[index-1].topology_node
+					meas_value_mag = np.abs(powerflow_results.nodes[index-1].voltage)
+					meas_value_phase = np.angle(powerflow_results.nodes[index-1].voltage)
+					self.create_measurement(element, ElemType.Node, MeasType.Vpmu_mag, meas_value_mag, unc_mag)
+					self.create_measurement(element, ElemType.Node, MeasType.Vpmu_phase, meas_value_phase, unc_phase)
+			elif key=="Ipmu":
+				unc_mag = float(value['unc_mag'])
+				unc_phase = float(value['unc_phase'])
+				for index in value['idx']:
+					element = powerflow_results.nodes[index-1].topology_branch
+					meas_value_mag =np.abs(powerflow_results.branches[index-1].current)
+					meas_value_phase =np.angle(powerflow_results.branches[index-1].current)
+					self.create_measurement(element, ElemType.Branch, MeasType.Ipmu_mag, meas_value_mag, unc_mag)
+					self.create_measurement(element, ElemType.Branch, MeasType.Ipmu_phase, meas_value_phase, unc_phase)
+
+	def meas_creation(self, seed=None):
 		""" 
 		It calculates the measured values (affected by uncertainty) at the measurement points
+		which distribution should be used? if gaussian --> stddev must be divided by 3
+
+		@param seed: Seed for RandomState (to make the random numbers predictable)
+					 Must be convertible to 32 bit unsigned integers.
 		"""
-		err_pu = np.random.normal(0,1,len(self.measurements))
+		if seed is None:
+			#err_pu = np.random.normal(0,1,len(self.measurements))
+			err_pu = np.random.uniform(-1,1,len(self.measurements))
+		else:
+			np.random.seed(seed)
+			err_pu = np.random.uniform(-1,1,len(self.measurements))
+		
 		for index, measurement in enumerate(self.measurements):
-			measurement.mval = measurement.meas_value + self.std_dev*err_pu[index]
+			measurement.mval = measurement.meas_value + measurement.std_dev*err_pu[index]
 
 	def meas_creation_test(self, err_pu):
 		""" 
 		For test purposes.
 		It calculates the measured values (affected by uncertainty) at the measurement points.
-		This function takes as paramenter the random gaussian distribution. 
+		This function takes as paramenter a random distribution. 
 		"""
 		for index, measurement in enumerate(self.measurements):
 			measurement.mval = measurement.meas_value + measurement.std_dev*err_pu[index]

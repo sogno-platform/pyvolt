@@ -39,6 +39,7 @@ class System():
 		self.Ymatrix = np.zeros((1, 1),dtype=np.complex)
 		self.Adjacencies = np.array([])
 
+	#def load_cim_data(self, res, Sb, Vb, Zb):
 	def load_cim_data(self, res):
 		#this function is used to fill the vectors node, branch, bR, bX, P and Q
 		for key, value in res.items():
@@ -77,11 +78,17 @@ class System():
 				self.branches.append(Branch(value.primaryConnection.r, value.primaryConnection.x, startNode, endNode))
 			else:
 				continue
+
+		#determine the impedance matrix
+		#self.Ymatrix_calc(Zb)
 		self.Ymatrix_calc()
 
+	#def Ymatrix_calc(self, Zb):
 	def Ymatrix_calc(self):
+		"""
+		@param Zb: base value of impedance
+		"""
 		nodes_num = len(self.nodes)
-		branches_num = len(self.branches)
 		self.Ymatrix = np.zeros((nodes_num, nodes_num),dtype=np.complex)
 		self.Adjacencies = [[] for _ in range(nodes_num)]
 		for branch in self.branches:
@@ -93,6 +100,8 @@ class System():
 			self.Ymatrix[to][to] += branch.y
 			self.Adjacencies[fr].append(to+1)	#to + 1???
 			self.Adjacencies[to].append(fr+1)	#fr + 1???
+
+		#self.Ymatrix = self.Ymatrix*Zb
 
 def load_python_data(nodes, branches, type):
 	system = System()
@@ -109,19 +118,3 @@ def load_python_data(nodes, branches, type):
 	
 	system.Ymatrix_calc()
 	return system
-	
-def Ymatrix_calc(system):
-	nodes_num = len(system.nodes)
-	branches_num = len(system.branches)
-	Ymatrix = np.zeros((nodes_num, nodes_num),dtype=np.complex)
-	Adjacencies = [[] for _ in range(nodes_num)]
-	for index in range(branches_num):
-		fr = system.branches[index].start_node.index
-		to = system.branches[index].end_node.index
-		Ymatrix[fr][to] -= system.branches[index].y
-		Ymatrix[to][fr] -= system.branches[index].y
-		Ymatrix[fr][fr] += system.branches[index].y
-		Ymatrix[to][to] += system.branches[index].y
-		Adjacencies[fr].append(to+1)
-		Adjacencies[to].append(fr+1)
-	return Ymatrix, Adjacencies

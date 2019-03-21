@@ -1,7 +1,6 @@
 import sys
 import math
 import numpy as np
-from network import Ymatrix_calc
 from network import BusType
 
 sys.path.append("../../../dataprocessing")
