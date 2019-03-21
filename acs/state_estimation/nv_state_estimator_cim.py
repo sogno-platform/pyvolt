@@ -18,10 +18,10 @@ def DsseCall(system, measurements):
 	Vmag_meas = 0
 	Vpmu_meas = 0
 	for elem in measurements.measurements:
-		if elem.meas_type=="V_mag":
-			Vmag_meas = Vmag_meas + 1
-		elif elem.meas_type=="Vpmu_mag":
-			Vpmu_meas = Vpmu_meas + 1
+		if elem.meas_type==MeasType.V_mag:
+			Vmag_meas += 1
+		elif elem.meas_type==MeasType.Vpmu_mag:
+			Vpmu_meas += 1
 
 	trad_code = 1 if Vmag_meas >0 else 0
 	PMU_code = 2 if Vpmu_meas >0 else 0
@@ -165,11 +165,10 @@ def DssePmu(nodes_num, measurements, Gmatrix, Bmatrix, Adj):
 	@param Adj
 	return: np.array V - estimated voltages
 	"""
-	
 	#calculate weights matrix (obtained as stdandard_deviations^-2)
 	weights = measurements.getWeightsMatrix()
 	W = np.diag(weights)
-	
+
 	#Jacobian for Power Injection Measurements
 	H2, H3 = calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, Adj, type=1)
 
@@ -191,7 +190,7 @@ def DssePmu(nodes_num, measurements, Gmatrix, Bmatrix, Adj):
 	WH = np.inner(W,H.transpose())
 	G = np.inner(H.transpose(),WH.transpose())
 	Ginv = np.linalg.inv(G)
-	
+
 	#get array which contains the index of measurements type MeasType.Sinj_real, MeasType.Sinj_imag in the array measurements.measurements
 	pidx = measurements.getIndexOfMeasurements(type=MeasType.Sinj_real)
 	qidx = measurements.getIndexOfMeasurements(type=MeasType.Sinj_imag)
@@ -204,12 +203,12 @@ def DssePmu(nodes_num, measurements, Gmatrix, Bmatrix, Adj):
 
 	#get an array with all measured values (affected by uncertainty)
 	z = measurements.getmVal()
-	
+
 	V = np.ones(nodes_num) + 1j*np.zeros(nodes_num)
 	State = np.concatenate((np.ones(nodes_num), np.zeros(nodes_num)), axis=0)
 	epsilon = 5
 	num_iter = 0
-	
+
 	# Iteration of Netwon Rapson method: needed to solve non-linear system of equation
 	while epsilon>10**(-6):
 
@@ -217,7 +216,7 @@ def DssePmu(nodes_num, measurements, Gmatrix, Bmatrix, Adj):
 		# in every iteration the input power measurements are converted into currents by dividing by the voltage estimated at the previous iteration
 		z = convertSinjMeasIntoCurrents(measurements, V, z, pidx, qidx)
 		z = convertSbranchMeasIntoCurrents(measurements, V, z, p1br, q1br, p2br, q2br)
-
+		
 		""" WLS computation """
 		y = np.inner(H,State)
 		res = np.subtract(z,y)
@@ -231,6 +230,7 @@ def DssePmu(nodes_num, measurements, Gmatrix, Bmatrix, Adj):
 		V.real = State[:nodes_num]
 		V.imag = State[nodes_num:]
 		
+		#print(V.real)
 		num_iter = num_iter+1
 		
 	return V

@@ -41,10 +41,13 @@ class Measurement():
 		self.element_type = element_type
 		self.meas_type = meas_type
 		self.meas_value = meas_value
+		self.std_dev = unc/100
+		"""
 		if meas_type not in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
 			self.std_dev = meas_value*unc/100
 		elif meas_type in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
 			self.std_dev = unc/100
+		"""
 		self.mval = 0.0					#measured values (affected by uncertainty)
 
 class Measurents_set():
@@ -66,7 +69,6 @@ class Measurents_set():
 		"""
 		with open(file_name) as json_file:
 			data = json.load(json_file)
-
 		for key, value in data['Measurement'].items():
 			if key=="Vmag":
 				unc = float(value['unc'])
@@ -122,8 +124,12 @@ class Measurents_set():
 				for index in value['idx']:
 					element = powerflow_results.nodes[index-1].topology_node
 					meas_value_mag = np.abs(powerflow_results.nodes[index-1].voltage)
-					meas_value_phase = np.angle(powerflow_results.nodes[index-1].voltage)
+					#meas_value_phase = np.angle(powerflow_results.nodes[index-1].voltage)
 					self.create_measurement(element, ElemType.Node, MeasType.Vpmu_mag, meas_value_mag, unc_mag)
+					#self.create_measurement(element, ElemType.Node, MeasType.Vpmu_phase, meas_value_phase, unc_phase)
+				for index in value['idx']:
+					element = powerflow_results.nodes[index-1].topology_node
+					meas_value_phase = np.angle(powerflow_results.nodes[index-1].voltage)
 					self.create_measurement(element, ElemType.Node, MeasType.Vpmu_phase, meas_value_phase, unc_phase)
 			elif key=="Ipmu":
 				unc_mag = float(value['unc_mag'])
@@ -151,7 +157,12 @@ class Measurents_set():
 			err_pu = np.random.uniform(-1,1,len(self.measurements))
 		
 		for index, measurement in enumerate(self.measurements):
-			measurement.mval = measurement.meas_value + measurement.std_dev*err_pu[index]
+			if measurement.meas_type not in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
+				zdev = measurement.meas_value*measurement.std_dev
+			elif measurement.meas_type in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
+				zdev = measurement.std_dev
+
+			measurement.mval = measurement.meas_value + zdev*err_pu[index]
 
 	def meas_creation_test(self, err_pu):
 		""" 
@@ -206,7 +217,7 @@ class Measurents_set():
 			#the weight is small and can bring instability during matrix inversion, so we "cut" everything below 10^-6
 			if measurement.std_dev<10**(-6):
 				measurement.std_dev = 10**(-6)
-			weights[index] = measurement.std_dev**(-2)
+			weights[index] = (measurement.std_dev/3)**(-2)
 		
 		return weights
 	
@@ -263,3 +274,13 @@ class Measurents_set():
 			std_dev[index] = measurement.std_dev			
 		
 		return std_dev
+
+	def getmVal_test(self):
+		"""
+		returns an array with all measured values (affected by uncertainty)
+		"""
+		mVal = np.zeros(len(self.measurements))
+		for index, measurement in enumerate(self.measurements):
+			mVal[index] = measurement.mval		
+
+		return mVal
