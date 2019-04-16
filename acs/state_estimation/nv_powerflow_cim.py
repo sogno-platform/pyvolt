@@ -43,7 +43,8 @@ def solve(system):
 			H[m][idx1] = - np.real(system.Ymatrix[i][idx1])
 			H[m][idx2] = np.imag(system.Ymatrix[i][idx1])
 	
-	epsilon = 10**(-10)
+	#epsilon = 10**(-10)
+	epsilon = 10**(-3)
 	diff = 5
 	V = np.ones(nodes_num) + 1j* np.zeros(nodes_num)
 	num_iter = 0
@@ -60,7 +61,7 @@ def solve(system):
 				h[m] = np.inner(H[m],State)
 				h[m+1] = np.inner(H[m+1],State)
 			elif type is BusType.PQ:
-				z[m] = (np.real(system.nodes[i].power)*np.real(V[i])+ np.imag(system.nodes[i].power)*np.imag(V[i]))/(np.abs(V[i])**2)
+				z[m] = (np.real(system.nodes[i].power)*np.real(V[i]) + np.imag(system.nodes[i].power)*np.imag(V[i]))/(np.abs(V[i])**2)
 				z[m+1] = (np.real(system.nodes[i].power)*np.imag(V[i]) - np.imag(system.nodes[i].power)*np.real(V[i]))/(np.abs(V[i])**2)
 				h[m] = np.inner(H[m],State)
 				h[m+1] = np.inner(H[m+1],State)
@@ -78,16 +79,11 @@ def solve(system):
 		diff = np.amax(np.absolute(Delta_State))
 		
 		V = State[:nodes_num] + 1j * State[nodes_num:]
-		
 		num_iter = num_iter+1
 		
+	# calculate all the other quantities of the grid
 	powerflow_results = results.Results(system)
 	powerflow_results.load_voltages(V)
-	powerflow_results.calculateI()
-	powerflow_results.calculateIinj()
-	powerflow_results.calculateSinj()
-	powerflow_results.calculateI()
-	powerflow_results.calculateS1()
-	powerflow_results.calculateS2()
-	
+	powerflow_results.calculate_all()
+
 	return powerflow_results, num_iter

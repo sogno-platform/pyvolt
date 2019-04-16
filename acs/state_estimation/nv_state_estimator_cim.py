@@ -662,10 +662,10 @@ def update_h6_vector(measurements, V, iidx, nii, Yabs_matrix, Yphase_matrix, nod
 			H6[i][n2] = Yabs_matrix[m][n]*(np.cos(Yphase_matrix[m][n])*h6im[i] - np.sin(Yphase_matrix[m][n])*h6re[i])/h6[i]
 		if type==2:
 			if m > 0:
-				m2 = m + node.num-1
+				m2 = m + nodes_num-1
 				H6[i][m2] = - Yabs_matrix[m][n]*(np.cos(Yphase_matrix[m][n])*h6im[i] - np.sin(Yphase_matrix[m][n])*h6re[i])/h6[i]
 			if n > 0:
-				n2 = n + node.num-1
+				n2 = n + nodes_num-1
 				H6[i][n2] = Yabs_matrix[m][n]*(np.cos(Yphase_matrix[m][n])*h6im[i] - np.sin(Yphase_matrix[m][n])*h6re[i])/h6[i]
 			
 	return h6, H6
