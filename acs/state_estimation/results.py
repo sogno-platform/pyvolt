@@ -1,6 +1,10 @@
 import numpy as np
 import cmath
 
+import sys
+sys.path.append("../../../dataprocessing")
+from villas.dataprocessing.readtools import *
+
 class ResultsNode():
 	def __init__(self, topo_node):		
 		self.topology_node = topo_node		
@@ -32,22 +36,13 @@ class Results():
 		"""
 		loadflow_results = read_timeseries_dpsim(file_name, print_status=False)
 		for node in self.nodes:
-			node.V = loadflow_results[node.topology_node.uuid].values[0]
+			node.voltage = loadflow_results[node.topology_node.uuid].values[0]
 
 	def load_voltages(self, V):
 		"""
 		load the voltages of V-array (result of powerflow_cim.solve)
 		"""
 		for index in range(len(V)):
-			for elem in self.nodes:
-				if elem.topology_node.index == index:
-					elem.voltage = V[index]
-
-	def load_voltages_from_dict(self, V):
-		"""
-		load the voltages of V-dict 
-		"""
-		for key, value in V.items():
 			for elem in self.nodes:
 				if elem.topology_node.index == index:
 					elem.voltage = V[index]
@@ -131,7 +126,7 @@ class Results():
 				
 	def get_voltages(self):
 		"""
-		get complex Power Injection at nodes
+		get node voltages
 		for a test purpose
 		"""
 		voltages = np.zeros(len(self.nodes), dtype=np.complex_)

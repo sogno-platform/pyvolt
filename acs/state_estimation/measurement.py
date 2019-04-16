@@ -41,7 +41,7 @@ class Measurement():
 		self.element_type = element_type
 		self.meas_type = meas_type
 		self.meas_value = meas_value
-		self.std_dev = unc/100
+		self.std_dev = unc/300
 		"""
 		if meas_type not in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
 			self.std_dev = meas_value*unc/100
@@ -150,8 +150,8 @@ class Measurents_set():
 					 Must be convertible to 32 bit unsigned integers.
 		"""
 		if seed is None:
-			#err_pu = np.random.normal(0,1,len(self.measurements))
-			err_pu = np.random.uniform(-1,1,len(self.measurements))
+			err_pu = np.random.normal(0,1,len(self.measurements))
+			#err_pu = np.random.uniform(-1,1,len(self.measurements))
 		else:
 			np.random.seed(seed)
 			err_pu = np.random.uniform(-1,1,len(self.measurements))
@@ -217,8 +217,9 @@ class Measurents_set():
 			#the weight is small and can bring instability during matrix inversion, so we "cut" everything below 10^-6
 			if measurement.std_dev<10**(-6):
 				measurement.std_dev = 10**(-6)
-			weights[index] = (measurement.std_dev/3)**(-2)
-		
+			#weights[index] = (measurement.std_dev/3)**(-2)
+			weights[index] = (measurement.std_dev)**(-2)
+
 		return weights
 	
 	def getMeasValues(self):
