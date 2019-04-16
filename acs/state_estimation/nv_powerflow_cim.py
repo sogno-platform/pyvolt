@@ -43,7 +43,8 @@ def solve(system):
 			H[m][idx1] = - np.real(system.Ymatrix[i][idx1])
 			H[m][idx2] = np.imag(system.Ymatrix[i][idx1])
 	
-	epsilon = 10**(-10)
+	#epsilon = 10**(-10)
+	epsilon = 10**(-3)
 	diff = 5
 	V = np.ones(nodes_num) + 1j* np.zeros(nodes_num)
 	num_iter = 0
