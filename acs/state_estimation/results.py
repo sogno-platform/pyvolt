@@ -1,9 +1,7 @@
 import numpy as np
 import cmath
-
 import sys
-sys.path.append("../../../dataprocessing")
-from villas.dataprocessing.readtools import *
+from villas.dataprocessing.readtools import read_timeseries_dpsim
 
 class ResultsNode():
 	def __init__(self, topo_node):		
@@ -190,4 +188,4 @@ class Results():
 		for test purposes
 		"""
 		for node in self.nodes:
-			print(node.topology_node.uuid + ": " + str(cmath.polar(node.voltage)))
+			print(node.topology_node.uuid + " = " + str(cmath.polar(node.voltage)))

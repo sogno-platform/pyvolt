@@ -1,8 +1,8 @@
 import sys
 import math
 import numpy as np
-from network import BusType
-import results
+from .network import BusType
+from .results import Results
 
 def solve(system):
 	"""It performs Power Flow by using rectangular node voltage state variables."""
@@ -19,8 +19,8 @@ def solve(system):
 		i2 = i + nodes_num
 		type = system.nodes[i].type 
 		if  type is BusType.SLACK:
-			z[m] = np.real(system.nodes[i].voltage)
-			z[m+1] = np.imag(system.nodes[i].voltage)
+			z[m] = np.real(system.nodes[i].voltage_pu)
+			z[m+1] = np.imag(system.nodes[i].voltage_pu)
 			H[m][i] = 1
 			H[m+1][i2] = 1
 		elif type is BusType.PQ:
@@ -61,12 +61,12 @@ def solve(system):
 				h[m] = np.inner(H[m],State)
 				h[m+1] = np.inner(H[m+1],State)
 			elif type is BusType.PQ:
-				z[m] = (np.real(system.nodes[i].power)*np.real(V[i]) + np.imag(system.nodes[i].power)*np.imag(V[i]))/(np.abs(V[i])**2)
-				z[m+1] = (np.real(system.nodes[i].power)*np.imag(V[i]) - np.imag(system.nodes[i].power)*np.real(V[i]))/(np.abs(V[i])**2)
+				z[m] = (np.real(system.nodes[i].power_pu)*np.real(V[i]) + np.imag(system.nodes[i].power_pu)*np.imag(V[i]))/(np.abs(V[i])**2)
+				z[m+1] = (np.real(system.nodes[i].power_pu)*np.imag(V[i]) - np.imag(system.nodes[i].power_pu)*np.real(V[i]))/(np.abs(V[i])**2)
 				h[m] = np.inner(H[m],State)
 				h[m+1] = np.inner(H[m+1],State)
 			elif type is BusType.PV:
-				z[m] = (np.real(system.nodes[i].power)*np.real(V[i])+ np.imag(system.nodes[i].power)*np.imag(V[i]))(np.abs(V[i])**2)
+				z[m] = (np.real(system.nodes[i].power_pu)*np.real(V[i])+ np.imag(system.nodes[i].power_pu)*np.imag(V[i]))(np.abs(V[i])**2)
 				h[m] = np.inner(H[m],State)
 				h[m+1] = np.abs(V[i])
 				H[m+1][i] = np.cos(np.angle(V[i]))
@@ -82,7 +82,7 @@ def solve(system):
 		num_iter = num_iter+1
 		
 	# calculate all the other quantities of the grid
-	powerflow_results = results.Results(system)
+	powerflow_results = Results(system)
 	powerflow_results.load_voltages(V)
 	powerflow_results.calculate_all()
 

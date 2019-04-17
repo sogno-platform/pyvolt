@@ -84,13 +84,8 @@ class System():
 
 		for uuid, element in res.items():
 			if element.__class__.__name__=="ACLineSegment":
-				length=element.length
-				if length==0.0:
-					length=1.0
-				bR = element.r*length
-				bX = element.x*length
-				self.bR.append(bR)
-				self.bX.append(bX)
+				self.bR.append(element.r)
+				self.bX.append(element.x)
 				for node in self.nodes:
 					if element.startNodeID==node.uuid:
 						startNode = node
@@ -101,8 +96,10 @@ class System():
 						break
 				
 				base_voltage = element.BaseVoltage.nominalVoltage
-				self.branches.append(Branch(bR, bX, startNode, endNode, base_voltage, base_apparent_power))
-			
+				self.branches.append(Branch(r=element.r, x=element.x, start_node=startNode, 
+											end_node=endNode, base_voltage=base_voltage, 
+											base_apparent_power=base_apparent_power))
+
 			elif element.__class__.__name__=="PowerTransformer":
 				bR = element.primaryConnection.r
 				bX = element.primaryConnection.x
@@ -119,7 +116,8 @@ class System():
 
 				#base voltage = high voltage side (=primaryConnection)
 				base_voltage = element.primaryConnection.BaseVoltage.nominalVoltage
-				self.branches.append(Branch(bR, bX, startNode, endNode, base_voltage, base_apparent_power))
+				self.branches.append(Branch(r=bR, x=bX, start_node=startNode, end_node=endNode, 
+											base_voltage=base_voltage, base_apparent_power=base_apparent_power))
 			
 			else:
 				continue
@@ -147,10 +145,10 @@ class System():
 		for branch in self.branches:
 			fr = branch.start_node.index
 			to = branch.end_node.index
-			self.Ymatrix[fr][to] -= branch.y
-			self.Ymatrix[to][fr] -= branch.y
-			self.Ymatrix[fr][fr] += branch.y
-			self.Ymatrix[to][to] += branch.y
+			self.Ymatrix[fr][to] -= branch.y_pu
+			self.Ymatrix[to][fr] -= branch.y_pu
+			self.Ymatrix[fr][fr] += branch.y_pu
+			self.Ymatrix[to][to] += branch.y_pu
 			self.Adjacencies[fr].append(to+1)	#to + 1???
 			self.Adjacencies[to].append(fr+1)	#fr + 1???
 
