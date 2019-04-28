@@ -1,18 +1,12 @@
-import numpy as np
-import math
-import sys
-import copy
 import logging
+import numpy as np
 import matplotlib.pyplot as plt
 
-sys.path.append("../../../cimpy")
 import cimpy
-
-sys.path.append("../../acs/state_estimation")
-import network
-import measurement
-import nv_state_estimator_cim
-import results
+from  acs.state_estimation import network
+from  acs.state_estimation import measurement
+from  acs.state_estimation import nv_state_estimator_cim
+from  acs.state_estimation import results
 
 logging.basicConfig(filename='CIGRE.log', level=logging.INFO, filemode='w')
 
@@ -25,10 +19,11 @@ cim_xml_files=[cim_xml_path + r"\Rootnet_FULL_NE_06J16h_DI.xml",
 #read cim files and create new network.Systen object
 res=cimpy.cimread(cim_xml_files)
 system = network.System()
-system.load_cim_data(res)
+base_apparent_power = 25    #MW
+system.load_cim_data(res, base_apparent_power)
 
 #read Input-Ergebnisdatei and store it in a results.Results object
-loadflow_results_path = r"C:\Users\Martin\Desktop\hiwi\git\reference-results\DPsim\StaticPhasor"
+loadflow_results_path = r"..\..\..\reference-results\DPsim\StaticPhasor"
 loadflow_results_file = loadflow_results_path + r"\CIGRE-MV-NoTap.csv" 
 powerflow_results = results.Results(system)
 powerflow_results.read_data_dpsim(loadflow_results_file)
@@ -46,9 +41,9 @@ Pmu_phase_unc = 0
 """use all node voltages as measures"""
 measurements_set = measurement.Measurents_set()
 for node in powerflow_results.nodes:
-	measurements_set.create_measurement(node.topology_node, nv_state_estimator_cim.ElemType.Node, nv_state_estimator_cim.MeasType.Vpmu_mag, np.absolute(node.voltage), Pmu_mag_unc)
+	measurements_set.create_measurement(node.topology_node, measurement.ElemType.Node, measurement.MeasType.Vpmu_mag, np.absolute(node.voltage), Pmu_mag_unc)
 for node in powerflow_results.nodes:
-	measurements_set.create_measurement(node.topology_node, nv_state_estimator_cim.ElemType.Node, nv_state_estimator_cim.MeasType.Vpmu_phase, np.angle(node.voltage), Pmu_phase_unc)
+	measurements_set.create_measurement(node.topology_node, measurement.ElemType.Node, measurement.MeasType.Vpmu_phase, np.angle(node.voltage), Pmu_phase_unc)
 measurements_set.meas_creation()
 
 # Perform state estimation
@@ -56,7 +51,7 @@ state_estimation_results_ideal = nv_state_estimator_cim.DsseCall(system, measure
 
 # Show numerical comparison
 Vest_ideal = state_estimation_results_ideal.get_voltages()
-Vtrue = powerflow_results.get_voltages()
+Vtrue = powerflow_results.get_voltages(pu=False)
 print(Vest_ideal - Vtrue)
 
 # --- State Estimation with Non-Ideal Measurements ---
@@ -67,9 +62,9 @@ Pmu_mag_unc = 1
 """use all node voltages as measures"""
 measurements_set = measurement.Measurents_set()
 for node in powerflow_results.nodes:
-	measurements_set.create_measurement(node.topology_node, nv_state_estimator_cim.ElemType.Node, nv_state_estimator_cim.MeasType.Vpmu_mag, np.absolute(node.voltage), Pmu_mag_unc)
+	measurements_set.create_measurement(node.topology_node, measurement.ElemType.Node, measurement.MeasType.Vpmu_mag, np.absolute(node.voltage), Pmu_mag_unc)
 for node in powerflow_results.nodes:
-	measurements_set.create_measurement(node.topology_node, nv_state_estimator_cim.ElemType.Node, nv_state_estimator_cim.MeasType.Vpmu_phase, np.angle(node.voltage), Pmu_phase_unc)
+	measurements_set.create_measurement(node.topology_node, measurement.ElemType.Node, measurement.MeasType.Vpmu_phase, np.angle(node.voltage), Pmu_phase_unc)
 measurements_set.meas_creation()
 
 # Perform state estimation
