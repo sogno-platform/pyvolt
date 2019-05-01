@@ -1,18 +1,13 @@
 import numpy as np
 import math
-import sys
-import copy 
-
-sys.path.append("../acs/state_estimation")
-import py_95bus_network_data
 import py_95bus_meas_data
-import nv_state_estimator
-import nv_powerflow
-
-import network
-import nv_powerflow_cim
-import cim_py_95bus_meas_data
-import nv_state_estimator_cim
+import py_95bus_network_data
+from acs.state_estimation import nv_state_estimator
+from acs.state_estimation import nv_powerflow
+from acs.state_estimation import network
+from acs.state_estimation import nv_powerflow_cim
+from acs.state_estimation import nv_state_estimator_cim
+from acs.state_estimation import measurement
 
 class PerUnit:
     def __init__(self, S, V):
@@ -48,18 +43,62 @@ class Zdata_init:
         self.mfrom = np.zeros(nmeas)
         self.mto = np.zeros(nmeas)
         self.mstddev = np.zeros(nmeas)
-		
-		
+
+def load_python_data(nodes, branches, type):
+	"""
+	to create a new network.System object from the objects 
+	py_95bus_network_data.Node and py_95bus_network_data.Branch
+	"""
+	system = network.System()
+	
+	for node_idx in range(0, nodes.num):
+		node = network.Node()
+		node.index = node_idx
+		node.type = network.BusType[type[node_idx]]
+		if node.type == network.BusType.slack:
+			node.voltage_pu = nodes.P2[node_idx]*np.cos(nodes.Q2[node_idx]) + 1j * nodes.P2[node_idx]*np.sin(nodes.Q2[node_idx])
+		elif node.type == network.BusType.PQ:
+			node.power_pu = complex(nodes.P2[node_idx], nodes.Q2[node_idx])
+		elif node.type == network.BusType.PV:
+			pass
+		system.nodes.append(node)
+
+	for branch_idx in range(0, branches.num):
+		branch = network.Branch()
+		branch.r_pu = branches.R[branch_idx]
+		branch.x_pu = branches.X[branch_idx]
+		branch.z_pu = complex(branch.r_pu, branch.x_pu)
+		branch.y_pu = 1/branch.z_pu if (branch.z_pu != 0) else float("inf")
+		branch.start_node = system.nodes[branches.start[branch_idx]-1]
+		branch.end_node = system.nodes[branches.end[branch_idx]-1]
+		system.branches.append(branch)
+	
+	system.Ymatrix_calc()
+	return system
+
 """ Insert here per unit values of the grid for power and voltage """
 S = 100*(10**6)
 V = (11*(10**3))/math.sqrt(3)
 slackV = 1.02
 
+#execute powerflow analysis using nv_powerflow
 Base = PerUnit(S,V)
 branch, node = py_95bus_network_data.Network_95_nodes(Base, slackV)
-system = network.load_python_data(node, branch, node.type)
 Vtrue, Itrue, Iinjtrue, S1true, S2true, Sinjtrue, num_iter = nv_powerflow.solve(branch, node)
-Vtrue_cim, Itrue_cim, Iinjtrue_cim, S1true_cim, S2true_cim, Sinjtrue_cim, num_iter_cim = nv_powerflow_cim.solve(system)
+
+#execute powerflow analysis using nv_powerflow_cim
+system = load_python_data(node, branch, node.type)
+res, num_iter = nv_powerflow_cim.solve(system)
+
+# Show numerical comparison with 6 decimals
+"""
+print("res.V==V? " +  str(not np.any(np.around(res.get_voltages(),6)-np.around(Vtrue,6))))
+print("res.Iinj==Iinj? " +  str(not np.any(np.around(res.get_Iinj(),6)-np.around(Iinjtrue,6))))
+print("res.I==I? " +  str(not np.any(np.around(res.getI(),6)-np.around(Itrue,6))))
+print("res.S1==S1? " +  str(not np.any(np.around(res.get_S1(),6)-np.around(S1true,6))))
+print("res.S2==S2? " +  str(not np.any(np.around(res.get_S2(),6)-np.around(S2true,6))))
+print("res.Sinj==Sinj? " +  str(not np.any(np.around(res.get_Sinj(),6)-np.around(Sinjtrue,6))))
+"""
 
 """ Write here the indexes of the nodes/branches where the measurements are"""
 V_idx = np.array([1,11,55])
@@ -67,10 +106,8 @@ I_idx = np.array([13,36])
 Sinj_idx = np.linspace(2,node.num,node.num-1)
 S1_idx = np.array([1,11,28,55,59])
 S2_idx = np.array([10,54])
-Ipmu_idx = np.array([1,11,55])
-Vpmu_idx = np.array([13,36])
-#Ipmu_idx = np.array([])
-#Vpmu_idx = np.array([])
+Ipmu_idx = np.array([13,36])
+Vpmu_idx = np.array([1,11,55])
 
 """ Write here the percent uncertainties of the measurements""" 
 V_unc = 1
@@ -80,6 +117,40 @@ S_unc = 2
 Pmu_mag_unc = 0.7
 Pmu_phase_unc = 0.7
 
+""" create measurements set (for nv_state_estimator_cim.py)"""
+measurements_set = nv_state_estimator_cim.Measurents_set()
+for i in [0,10,54]:
+	PowerflowNode = res.get_node(i)
+	measurements_set.create_measurement(PowerflowNode.topology_node, nv_state_estimator_cim.ElemType.Node, nv_state_estimator_cim.MeasType.V_mag, np.absolute(PowerflowNode.voltage_pu), V_unc)
+for i in range(1,len(res.nodes)):
+	PowerflowNode = res.get_node(i)
+	measurements_set.create_measurement(PowerflowNode.topology_node, nv_state_estimator_cim.ElemType.Node, nv_state_estimator_cim.MeasType.Sinj_real, PowerflowNode.power_pu.real, Sinj_unc)
+for i in range(1,len(res.nodes)):
+	PowerflowNode = res.get_node(i)
+	measurements_set.create_measurement(PowerflowNode.topology_node, nv_state_estimator_cim.ElemType.Node, nv_state_estimator_cim.MeasType.Sinj_imag, PowerflowNode.power_pu.imag, Sinj_unc)
+for i in [0,10,27,54,58]:
+	measurements_set.create_measurement(res.branches[i].topology_branch, nv_state_estimator_cim.ElemType.Branch, nv_state_estimator_cim.MeasType.S1_real, res.branches[i].power_pu.real, S_unc)
+for i in [9,53]:
+	measurements_set.create_measurement(res.branches[i].topology_branch, nv_state_estimator_cim.ElemType.Branch, nv_state_estimator_cim.MeasType.S2_real, res.branches[i].power2_pu.real, S_unc)
+for i in [0,10,27,54,58]:	
+	measurements_set.create_measurement(res.branches[i].topology_branch, nv_state_estimator_cim.ElemType.Branch, nv_state_estimator_cim.MeasType.S1_imag, res.branches[i].power_pu.imag, S_unc)
+for i in [9,53]:
+	measurements_set.create_measurement(res.branches[i].topology_branch, nv_state_estimator_cim.ElemType.Branch, nv_state_estimator_cim.MeasType.S2_imag, res.branches[i].power2_pu.imag, S_unc)
+for i in [12,35]:
+	measurements_set.create_measurement(res.branches[i].topology_branch, nv_state_estimator_cim.ElemType.Branch, nv_state_estimator_cim.MeasType.I_mag, np.absolute(res.branches[i].current_pu), I_unc)
+for i in [0,10,54]:
+	PowerflowNode = res.get_node(i)
+	measurements_set.create_measurement(PowerflowNode.topology_node, nv_state_estimator_cim.ElemType.Node, nv_state_estimator_cim.MeasType.Vpmu_mag, np.absolute(PowerflowNode.voltage_pu), Pmu_mag_unc)
+for i in [0,10,54]:
+	PowerflowNode = res.get_node(i)
+	measurements_set.create_measurement(PowerflowNode.topology_node, nv_state_estimator_cim.ElemType.Node, nv_state_estimator_cim.MeasType.Vpmu_phase, np.angle(PowerflowNode.voltage_pu), Pmu_phase_unc)
+for i in [12,35]:
+	measurements_set.create_measurement(res.branches[i].topology_branch, nv_state_estimator_cim.ElemType.Branch, nv_state_estimator_cim.MeasType.Ipmu_mag, np.absolute(res.branches[i].current_pu), Pmu_mag_unc)
+for i in [12,35]:
+	measurements_set.create_measurement(res.branches[i].topology_branch, nv_state_estimator_cim.ElemType.Branch, nv_state_estimator_cim.MeasType.Ipmu_phase, np.angle(res.branches[i].current_pu), Pmu_phase_unc)
+
+
+""" create measurements set (for nv_state_estimator.py)"""
 V = Measurements(V_idx,V_unc)
 I = Measurements(I_idx,I_unc)
 Sinj = Measurements(Sinj_idx,Sinj_unc)
@@ -89,52 +160,23 @@ Ipmu_mag = Measurements(Ipmu_idx,Pmu_mag_unc)
 Ipmu_phase = Measurements(Ipmu_idx,Pmu_phase_unc)
 Vpmu_mag = Measurements(Vpmu_idx,Pmu_mag_unc)
 Vpmu_phase = Measurements(Vpmu_idx,Pmu_phase_unc)
-meas = Measurement_set(V, I, Sinj, S1, S2, Ipmu_mag, Ipmu_phase, Vpmu_mag, Vpmu_phase)
+meas = Measurement_set(V, I, Sinj, S1, S2, Vpmu_mag, Vpmu_phase, Ipmu_mag, Ipmu_phase)
 zdata = Zdata_init(meas)
-zdatameas =  Zdata_init(meas)
-zdata_cim = copy.deepcopy(zdata) 
-zdatameas_cim =  copy.deepcopy(zdatameas)
+zdatameas = Zdata_init(meas)
 
+# Perform state estimation
 zdata, zdatameas = py_95bus_meas_data.Zdatatrue_creation(zdata, zdatameas, meas, branch, Vtrue, Itrue, Iinjtrue, S1true, S2true, Sinjtrue)
-zdata_cim, zdatameas_cim = cim_py_95bus_meas_data.Zdatatrue_creation(zdata_cim, zdatameas_cim, meas, system, Vtrue_cim, Itrue_cim, Iinjtrue_cim, S1true_cim, S2true_cim, Sinjtrue_cim)
+err_pu, zdatameas = py_95bus_meas_data.Zdatameas_creation(zdata, zdatameas)
+measurements_set.meas_creation_test(err_pu)
+#print("mval:")
+#print(measurements_set.getmVal_test())
+Vest, Iest, Iinjest, S1est, S2est, Sinjest = nv_state_estimator.DsseCall(branch, node, zdatameas, system.Ymatrix, system.Adjacencies)
+results = nv_state_estimator_cim.DsseCall(system, measurements_set) 
 
-#compare results:
-print("Vtrue==Vtrue_cim?: " + str((Vtrue==Vtrue_cim).all()))
-print("Itrue==Itrue_cim?: " + str((Itrue==Itrue_cim).all()))
-print("Iinjtrue==Iinjtrue_cim?: " + str((Iinjtrue==Iinjtrue_cim).all()))
-print("S1true==S1true_cim?: " + str((S1true==S1true_cim).all()))
-print("S2true==S2true_cim?: " + str((S2true==S2true_cim).all()))
-print("Sinjtrue==Sinjtrue_cim?: " + str((Sinjtrue==Sinjtrue_cim).all()))
-print("zdata.mtype==zdata_cim.mtype?: {}".format(np.array_equal(zdata.mtype, zdata_cim.mtype)))
-print("zdata.mval==zdata_cim.mval?: {}".format(np.array_equal(zdata.mval, zdata_cim.mval)))
-print("zdatameas.mval==zdatameas_cim.mval?: {}".format(np.array_equal(zdatameas.mval, zdatameas_cim.mval)))
-#print("zdata.mbranch==zdata_cim.mbranch?: {}".format(np.array_equal(zdata.mbranch, zdata_cim.mbranch)))
-print("zdata.mfrom==zdata_cim.mfrom?: {}".format(np.array_equal(zdata.mfrom, zdata_cim.mfrom)))
-#print(zdata.mfrom-zdata_cim.mfrom)
-print("zdata.mto==zdata_cim.mto?: {}".format(np.array_equal(zdata.mto, zdata_cim.mto)))
-#print(zdata.mto-zdata_cim.mto)
-print("zdata.mstddev==zdata_cim.mstddev?: {}".format(np.array_equal(zdata.mstddev, zdata_cim.mstddev)))
-
-
-MC_trials = 1
-iter_counter = np.zeros(MC_trials)
-Ymatr, Adj = nv_powerflow.Ymatrix_calc(branch,node)
-Ymatr_cim, Adj_cim = network.Ymatrix_calc(system)
-
-for mciter in range(0,MC_trials):      
-	zdatameas = py_95bus_meas_data.Zdatameas_creation(zdata, zdatameas)
-	zdatameas_cim=copy.deepcopy(zdatameas) 		#to compare use the same random normal (Gaussian) distribution.
-	#zdatameas_cim = cim_py_95bus_meas_data.Zdatameas_creation(zdata_cim, zdatameas_cim)
-	Vest, Iest, Iinjest, S1est, S2est, Sinjest = nv_state_estimator.DsseCall(branch, node, zdatameas, Ymatr, Adj)
-	Vest_cim, Iest_cim, Iinjest_cim, S1est_cim, S2est_cim, Sinjest_cim = nv_state_estimator_cim.DsseCall(system, zdatameas_cim, Ymatr_cim, Adj_cim)
-
-print("Ymatr==Ymatr_cim?: {}".format(np.array_equal(Ymatr, Ymatr_cim)))
-print("Adj==Adj_cim?: {}".format(np.array_equal(Adj, Adj_cim)))
-print("Vest==Vest_cim?: {}".format(np.array_equal(Vest.complex, Vest_cim.complex)))
-#print(Vest.complex - Vest_cim.complex)
-print("Iest==Iest_cim?: {}".format(np.array_equal(Iest.complex, Iest_cim.complex)))
-print("Iinjest==Iinjest_cim?: {}".format(np.array_equal(Iinjest.complex, Iinjest_cim.complex)))
-print("S1est==S1est_cim?: {}".format(np.array_equal(S1est.complex, S1est_cim.complex)))
-print("S2est==S2est_cim?: {}".format(np.array_equal(S2est.complex, S2est_cim.complex)))
-print("Sinjest==Sinjest_cim?: {}".format(np.array_equal(Sinjest.complex, Sinjest_cim.complex)))
-print(Vest.complex)
+# Show numerical comparison
+print("results.V==Vest?: " + str(np.array_equal(np.around(Vest.complex,5), np.around(results.get_voltages(),5))))
+print("results.Iinj==Iinjest? " +  str(not np.any(np.around(results.get_Iinj(),5)-np.around(Iinjest.complex,5))))
+print("results.I==Iest? " +  str(not np.any(np.around(results.getI(),5)-np.around(Iest.complex,5))))
+print("results.S1==S1est? " +  str(not np.any(np.around(results.get_S1(),5)-np.around(S1est.complex,5))))
+print("results.S2==S2est? " +  str(not np.any(np.around(results.get_S2(),5)-np.around(S2est.complex,5))))
+print("results.Sinj==Sinjest? " +  str(not np.any(np.around(results.get_Sinj(),5)-np.around(Sinjest.complex,5))))
