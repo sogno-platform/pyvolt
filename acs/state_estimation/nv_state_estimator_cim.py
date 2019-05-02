@@ -1,6 +1,6 @@
 import numpy as np
-from results import Results
-from measurement import *
+from  acs.state_estimation.results import Results
+from acs.state_estimation.measurement import *
 
 def DsseCall(system, measurements):
 	""" 
@@ -211,7 +211,6 @@ def DssePmu(nodes_num, measurements, Gmatrix, Bmatrix, Adj):
 
 	# Iteration of Netwon Rapson method: needed to solve non-linear system of equation
 	while epsilon>10**(-6):
-
 		""" Computation of equivalent current measurements in place of the power measurements """
 		# in every iteration the input power measurements are converted into currents by dividing by the voltage estimated at the previous iteration
 		z = convertSinjMeasIntoCurrents(measurements, V, z, pidx, qidx)
@@ -230,7 +229,6 @@ def DssePmu(nodes_num, measurements, Gmatrix, Bmatrix, Adj):
 		V.real = State[:nodes_num]
 		V.imag = State[nodes_num:]
 		
-		#print(V.real)
 		num_iter = num_iter+1
 		
 	return V
@@ -296,14 +294,12 @@ def DsseMixed(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_mat
 	epsilon = 5
 	num_iter = 0
 	
-	k = 0
 	# Iteration of Netwon Rapson method: needed to solve non-linear system of equation
 	while epsilon>10**(-6):
-		k = k+1
 		""" Computation of equivalent current measurements in place of the power measurements """
 		z = convertSinjMeasIntoCurrents(measurements, V, z, pidx, qidx)
 		z = convertSbranchMeasIntoCurrents(measurements, V, z, p1br, q1br, p2br, q2br)
-
+				
 		""" Voltage Magnitude Measurements """
 		h1, H1 = update_h1_vector(measurements, V, vidx, nvi, nodes_num, type=1)
 
@@ -339,14 +335,11 @@ def DsseMixed(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_mat
 		
 		State = State + Delta_State
 		epsilon = np.amax(np.absolute(Delta_State))
-		
+				
 		V.real = State[:nodes_num]
 		V.imag = State[nodes_num:]
 	
 		num_iter = num_iter+1
-
-		#if k==4:
-		#	return H
 
 	return V
 	
@@ -612,7 +605,7 @@ def update_h1_vector(measurements, V, vidx, nvi, nodes_num, type):
 			H1[i][m2] = np.sin(np.angle(V[node_index]))
 		elif type==2:
 			if m > 0:
-				m2 = node_index + node.num - 1
+				m2 = node_index + nodes_num - 1
 				H1[i][m2] = np.sin(V.phase[m])
 	
 	return h1, H1

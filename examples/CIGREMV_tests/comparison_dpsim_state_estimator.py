@@ -41,16 +41,16 @@ Pmu_phase_unc = 0
 """use all node voltages as measures"""
 measurements_set = measurement.Measurents_set()
 for node in powerflow_results.nodes:
-	measurements_set.create_measurement(node.topology_node, measurement.ElemType.Node, measurement.MeasType.Vpmu_mag, np.absolute(node.voltage), Pmu_mag_unc)
+	measurements_set.create_measurement(node.topology_node, measurement.ElemType.Node, measurement.MeasType.Vpmu_mag, np.absolute(node.voltage_pu), Pmu_mag_unc)
 for node in powerflow_results.nodes:
-	measurements_set.create_measurement(node.topology_node, measurement.ElemType.Node, measurement.MeasType.Vpmu_phase, np.angle(node.voltage), Pmu_phase_unc)
+	measurements_set.create_measurement(node.topology_node, measurement.ElemType.Node, measurement.MeasType.Vpmu_phase, np.angle(node.voltage_pu), Pmu_phase_unc)
 measurements_set.meas_creation()
 
 # Perform state estimation
 state_estimation_results_ideal = nv_state_estimator_cim.DsseCall(system, measurements_set) 
 
 # Show numerical comparison
-Vest_ideal = state_estimation_results_ideal.get_voltages()
+Vest_ideal = state_estimation_results_ideal.get_voltages(pu=False)
 Vtrue = powerflow_results.get_voltages(pu=False)
 print(Vest_ideal - Vtrue)
 
@@ -62,16 +62,16 @@ Pmu_mag_unc = 1
 """use all node voltages as measures"""
 measurements_set = measurement.Measurents_set()
 for node in powerflow_results.nodes:
-	measurements_set.create_measurement(node.topology_node, measurement.ElemType.Node, measurement.MeasType.Vpmu_mag, np.absolute(node.voltage), Pmu_mag_unc)
+	measurements_set.create_measurement(node.topology_node, measurement.ElemType.Node, measurement.MeasType.Vpmu_mag, np.absolute(node.voltage_pu), Pmu_mag_unc)
 for node in powerflow_results.nodes:
-	measurements_set.create_measurement(node.topology_node, measurement.ElemType.Node, measurement.MeasType.Vpmu_phase, np.angle(node.voltage), Pmu_phase_unc)
+	measurements_set.create_measurement(node.topology_node, measurement.ElemType.Node, measurement.MeasType.Vpmu_phase, np.angle(node.voltage_pu), Pmu_phase_unc)
 measurements_set.meas_creation()
 
 # Perform state estimation
 state_estimation_results_real = nv_state_estimator_cim.DsseCall(system, measurements_set) 
 
 # Show numerical comparison
-Vest_real = state_estimation_results_real.get_voltages()
+Vest_real = state_estimation_results_real.get_voltages(pu=False)
 print(Vest_real - Vtrue)
 
 # Plot comparison

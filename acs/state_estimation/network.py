@@ -10,25 +10,27 @@ class BusType(Enum):
 	pq = 3
 
 class Node():
-	def __init__(self, name='', uuid='', base_voltage = 1.0, base_apparent_power=1.0,
-				 v_mag=0.0, v_phase=0.0, p=0.0, q=0.0, index=0,  bus_type='PQ'):
-		self.name = name
+	def __init__(self, uuid='', base_voltage = 1.0, base_apparent_power=1.0, v_mag=0.0, 
+				 v_phase=0.0, p=0.0, q=0.0, index=0,  bus_type='PQ', pu=False):
 		self.uuid = uuid
 		self.index = index
 		self.baseVoltage = base_voltage
 		self.base_apparent_power = base_apparent_power
+		self.base_current = self.base_apparent_power/self.baseVoltage
 		self.type = BusType[bus_type]
 		self.voltage = v_mag*np.cos(v_phase) + 1j * v_mag*np.sin(v_phase)
 		self.power = complex(p, q)
 		self.power_pu = complex(p, q)/self.base_apparent_power
 		self.voltage_pu = self.voltage/self.baseVoltage
 		
-
 class Branch():
-	def __init__(self, r, x, start_node, end_node, base_voltage=1.0, base_apparent_power=1.0):
+	def __init__(self, uuid='', r=0.0, x=0.0, start_node=None, end_node=None, 
+					base_voltage=1.0, base_apparent_power=1.0):
+		self.uuid = uuid
 		self.baseVoltage = base_voltage
 		self.base_apparent_power = base_apparent_power
-		self.base_impedance = base_voltage**2 / self.base_apparent_power
+		self.base_current = self.base_apparent_power/self.baseVoltage
+		self.base_impedance = base_voltage**2/self.base_apparent_power
 		self.start_node = start_node
 		self.end_node = end_node
 		self.r = r
@@ -44,10 +46,6 @@ class System():
 	def __init__(self):
 		self.nodes=[]
 		self.branches=[]
-		self.bR=[]
-		self.bX=[]
-		self.P=[]
-		self.Q=[]
 		self.Ymatrix = np.zeros([], dtype=np.complex)
 		self.Adjacencies = np.array([])
 
@@ -55,7 +53,7 @@ class System():
 		"""
 		To fill the vectors node, branch, bR, bX, P and Q
 		"""
-
+		index = 0
 		for uuid, element in res.items():
 			if element.__class__.__name__=="TopologicalNode":
 				vmag = 0.0
@@ -73,19 +71,15 @@ class System():
 						if element2.getNodeUUID() == uuid:
 							pInj += element2.p
 							qinj += element2.q
-				self.P.append(pInj)
-				self.Q.append(qinj)
-				index=len(self.P)-1
 				node_type = self._getNodeType(element)
 				base_voltage = element.BaseVoltage.nominalVoltage
-				self.nodes.append(Node(name=element.name, uuid=uuid, base_voltage=base_voltage, 
-										base_apparent_power=base_apparent_power, v_mag=vmag, 
-										v_phase=vphase, p=pInj, q=qinj, index=index, bus_type=node_type))
-
+				self.nodes.append(Node(uuid=uuid, base_voltage=base_voltage, v_mag=vmag, 
+										base_apparent_power=base_apparent_power, v_phase=vphase, 
+										p=pInj, q=qinj, index=index, bus_type=node_type))
+				index = index+1
+		
 		for uuid, element in res.items():
 			if element.__class__.__name__=="ACLineSegment":
-				self.bR.append(element.r)
-				self.bX.append(element.x)
 				for node in self.nodes:
 					if element.startNodeID==node.uuid:
 						startNode = node
@@ -94,17 +88,12 @@ class System():
 					if element.endNodeID==node.uuid:
 						endNode=node
 						break
-				
 				base_voltage = element.BaseVoltage.nominalVoltage
-				self.branches.append(Branch(r=element.r, x=element.x, start_node=startNode, 
+				self.branches.append(Branch(uuid=uuid, r=element.r, x=element.x, start_node=startNode, 
 											end_node=endNode, base_voltage=base_voltage, 
 											base_apparent_power=base_apparent_power))
-
+				continue
 			elif element.__class__.__name__=="PowerTransformer":
-				bR = element.primaryConnection.r
-				bX = element.primaryConnection.x
-				self.bR.append(bR)
-				self.bX.append(bX)
 				for i in range(len(self.nodes)):
 					if element.startNodeID==self.nodes[i].uuid:
 						startNode=self.nodes[i]
@@ -113,16 +102,16 @@ class System():
 					if element.endNodeID==self.nodes[i].uuid:
 						endNode=self.nodes[i]
 						break
-
 				#base voltage = high voltage side (=primaryConnection)
 				base_voltage = element.primaryConnection.BaseVoltage.nominalVoltage
-				self.branches.append(Branch(r=bR, x=bX, start_node=startNode, end_node=endNode, 
-											base_voltage=base_voltage, base_apparent_power=base_apparent_power))
-			
+				self.branches.append(Branch(uuid=uuid, r=element.primaryConnection.r, x=element.primaryConnection.x, 
+											start_node=startNode, end_node=endNode, base_voltage=base_voltage, 
+											base_apparent_power=base_apparent_power))
+				continue
 			else:
 				continue
 
-		#calculate impedance matrix
+		#calculate admitance matrix
 		self.Ymatrix_calc()
 
 	def _getNodeType(self, node):
@@ -151,22 +140,3 @@ class System():
 			self.Ymatrix[to][to] += branch.y_pu
 			self.Adjacencies[fr].append(to+1)	#to + 1???
 			self.Adjacencies[to].append(fr+1)	#fr + 1???
-
-def load_python_data(nodes, branches, type):
-	system = System()
-	
-	for node_idx in range(0, nodes.num):
-		if BusType[type[node_idx]] == BusType.slack:		
-			system.nodes.append(Node(v_mag=nodes.P2[0], v_phase=nodes.Q2[0], p=0, q=0, index=node_idx, bus_type=type[node_idx]))
-		elif BusType[type[node_idx]] == BusType.PQ:
-			system.nodes.append(Node(v_mag=0, v_phase=0, p=nodes.P2[node_idx], q=nodes.Q2[node_idx], index=node_idx, bus_type=type[node_idx]))
-		elif BusType[type[node_idx]] == BusType.PV:
-			#TODO
-			pass
-
-	for branch_idx in range(0, branches.num):
-		system.branches.append(Branch(branches.R[branch_idx], branches.X[branch_idx], 
-		system.nodes[branches.start[branch_idx]-1], system.nodes[branches.end[branch_idx]-1]))
-	
-	system.Ymatrix_calc()
-	return system

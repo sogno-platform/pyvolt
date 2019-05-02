@@ -24,7 +24,7 @@ class Measurement():
 	def __init__(self, element, element_type, meas_type, meas_value, unc):
 		"""
 		Creates a measurement, which is used by the estimation module. Possible types of measurements are: v, p, q, i, Vpmu and Ipmu
-		@element: pointer to measured element
+		@element: pointer to the topology_node / topology_branch (object of class network.Node / network.Branch)
 		@element_type: Clarifies which element is measured.
 		@meas_type: 
 		@meas_value: measurement value.
@@ -42,12 +42,6 @@ class Measurement():
 		self.meas_type = meas_type
 		self.meas_value = meas_value
 		self.std_dev = unc/300
-		"""
-		if meas_type not in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
-			self.std_dev = meas_value*unc/100
-		elif meas_type in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
-			self.std_dev = unc/100
-		"""
 		self.mval = 0.0					#measured values (affected by uncertainty)
 
 class Measurents_set():
@@ -64,7 +58,7 @@ class Measurents_set():
 		"""
 		read measurements from file.
 
-		@param powerflow_results 
+		@param powerflow_results: object of class acs.state_estimation.results.Results
 		@param file_name
 		"""
 		with open(file_name) as json_file:
@@ -72,97 +66,111 @@ class Measurents_set():
 		for key, value in data['Measurement'].items():
 			if key=="Vmag":
 				unc = float(value['unc'])
-				for index in value['idx']:
-					element = powerflow_results.nodes[index-1].topology_node
-					meas_value = np.abs(powerflow_results.nodes[index-1].voltage)
+				for uuid in value['uuid']:
+					pf_node = powerflow_results.get_node(uuid=uuid)
+					element = pf_node.topology_node
+					meas_value = np.abs(pf_node.voltage_pu)
 					self.create_measurement(element, ElemType.Node, MeasType.V_mag, meas_value, unc)
 			elif key=="Imag":
 				unc = float(value['unc'])
-				for index in value['idx']:
-					element = powerflow_results.nodes[index-1].topology_branch
-					meas_value =np.abs(powerflow_results.branches[index-1].current)
+				for uuid in value['uuid']:
+					pf_branch = powerflow_results.get_branch(uuid=uuid)
+					element = pf_branch.topology_branch
+					meas_value =np.abs(pf_branch.current_pu)
 					self.create_measurement(element, ElemType.Branch, MeasType.I_mag, meas_value, unc)
 			elif key=="Pinj":
 				unc = float(value['unc'])
-				for index in value['idx']:
-					element = powerflow_results.nodes[index-1].topology_node
-					meas_value = powerflow_results.nodes[index-1].power.real
+				for uuid in value['uuid']:
+					pf_node = powerflow_results.get_node(uuid=uuid)
+					element = pf_node.topology_node
+					meas_value = pf_node.power_pu.real
 					self.create_measurement(element, ElemType.Node, MeasType.Sinj_real, meas_value, unc)
 			elif key=="Qinj":
 				unc = float(value['unc'])
-				for index in value['idx']:
-					element = powerflow_results.nodes[index-1].topology_node
-					meas_value = powerflow_results.nodes[index-1].power.imag
+				for uuid in value['uuid']:
+					pf_node = powerflow_results.get_node(uuid=uuid)
+					element = pf_node.topology_node
+					meas_value = pf_node.power_pu.imag
 					self.create_measurement(element, ElemType.Node, MeasType.Sinj_imag, meas_value, unc)
 			elif key=="P1":
 				unc = float(value['unc'])
-				for index in value['idx']:
-					element = powerflow_results.nodes[index-1].topology_branch
-					meas_value = powerflow_results.branches[index-1].power.real
+				for uuid in value['uuid']:
+					pf_branch = powerflow_results.get_branch(uuid=uuid)
+					element = pf_branch.topology_branch
+					meas_value = pf_branch.power_pu.real
 					self.create_measurement(element, ElemType.Branch, MeasType.S1_real, meas_value, unc)
 			elif key=="Q1":
 				unc = float(value['unc'])
-				for index in value['idx']:
-					element = powerflow_results.nodes[index-1].topology_branch
-					meas_value = powerflow_results.branches[index-1].power.imag
+				for uuid in value['uuid']:
+					pf_branch = powerflow_results.get_branch(uuid=uuid)
+					element = pf_branch.topology_branch
+					meas_value = pf_branch.power_pu.imag
 					self.create_measurement(element, ElemType.Branch, MeasType.S1_imag, meas_value, unc)
 			elif key=="P2":
 				unc = float(value['unc'])
-				for index in value['idx']:
-					element = powerflow_results.nodes[index-1].topology_branch
-					meas_value = powerflow_results.branches[index-1].power2.real
+				for uuid in value['uuid']:
+					pf_branch = powerflow_results.get_branch(uuid=uuid)
+					element = pf_branch.topology_branch
+					meas_value = pf_branch.power2_pu.real
 					self.create_measurement(element, ElemType.Branch, MeasType.S2_real, meas_value, unc)
 			elif key=="Q2":
 				unc = float(value['unc'])
-				for index in value['idx']:
-					element = powerflow_results.nodes[index-1].topology_branch
-					meas_value = powerflow_results.branches[index-1].power2.imag
+				for uuid in value['uuid']:
+					pf_branch = powerflow_results.get_branch(uuid=uuid)
+					element = pf_branch.topology_branch
+					meas_value = pf_branch.power2_pu.imag
 					self.create_measurement(element, ElemType.Branch, MeasType.S2_imag, meas_value, unc)
 			elif key=="Vpmu":
 				unc_mag = float(value['unc_mag'])
 				unc_phase = float(value['unc_phase'])
-				for index in value['idx']:
-					element = powerflow_results.nodes[index-1].topology_node
-					meas_value_mag = np.abs(powerflow_results.nodes[index-1].voltage)
-					#meas_value_phase = np.angle(powerflow_results.nodes[index-1].voltage)
+				for uuid in value['uuid']:
+					pf_node = powerflow_results.get_node(uuid=uuid)
+					element = pf_node.topology_node
+					meas_value_mag = np.abs(pf_node.voltage_pu)
 					self.create_measurement(element, ElemType.Node, MeasType.Vpmu_mag, meas_value_mag, unc_mag)
-					#self.create_measurement(element, ElemType.Node, MeasType.Vpmu_phase, meas_value_phase, unc_phase)
-				for index in value['idx']:
-					element = powerflow_results.nodes[index-1].topology_node
-					meas_value_phase = np.angle(powerflow_results.nodes[index-1].voltage)
+				for uuid in value['uuid']:
+					pf_node = powerflow_results.get_node(uuid=uuid)
+					element = pf_node.topology_node
+					meas_value_phase = np.angle(pf_node.voltage_pu)
 					self.create_measurement(element, ElemType.Node, MeasType.Vpmu_phase, meas_value_phase, unc_phase)
 			elif key=="Ipmu":
 				unc_mag = float(value['unc_mag'])
 				unc_phase = float(value['unc_phase'])
-				for index in value['idx']:
-					element = powerflow_results.nodes[index-1].topology_branch
-					meas_value_mag =np.abs(powerflow_results.branches[index-1].current)
-					meas_value_phase =np.angle(powerflow_results.branches[index-1].current)
+				for uuid in value['uuid']:
+					pf_branch = powerflow_results.get_branch(uuid=uuid)
+					element = pf_branch.topology_branch
+					meas_value_mag = np.abs(pf_branch.current_pu)
+					meas_value_phase = np.angle(pf_branch.current_pu)
 					self.create_measurement(element, ElemType.Branch, MeasType.Ipmu_mag, meas_value_mag, unc_mag)
 					self.create_measurement(element, ElemType.Branch, MeasType.Ipmu_phase, meas_value_phase, unc_phase)
 
-	def meas_creation(self, seed=None):
+	def meas_creation(self, dist="normal", seed=None):
 		""" 
 		It calculates the measured values (affected by uncertainty) at the measurement points
 		which distribution should be used? if gaussian --> stddev must be divided by 3
 
 		@param seed: Seed for RandomState (to make the random numbers predictable)
 					 Must be convertible to 32 bit unsigned integers.
+		@param seed: - normal: use normal distribution (-->std_dev are divided by 3)
+					 - uniform: use normal distribution
 		"""
-		if seed is None:
+		np.random.seed(seed)
+		if dist == "normal":
 			err_pu = np.random.normal(0,1,len(self.measurements))
-			#err_pu = np.random.uniform(-1,1,len(self.measurements))
-		else:
-			np.random.seed(seed)
+			for index, measurement in enumerate(self.measurements):
+				if measurement.meas_type not in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
+					zdev = measurement.meas_value*measurement.std_dev
+				elif measurement.meas_type in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
+					zdev = measurement.std_dev
+				measurement.mval = measurement.meas_value + zdev*err_pu[index]		
+		elif dist == "uniform":
 			err_pu = np.random.uniform(-1,1,len(self.measurements))
-		
-		for index, measurement in enumerate(self.measurements):
-			if measurement.meas_type not in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
-				zdev = measurement.meas_value*measurement.std_dev
-			elif measurement.meas_type in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
-				zdev = measurement.std_dev
-
-			measurement.mval = measurement.meas_value + zdev*err_pu[index]
+			for index, measurement in enumerate(self.measurements):
+				if measurement.meas_type not in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
+					zdev = (measurement.meas_value*measurement.std_dev)
+				elif measurement.meas_type in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
+					zdev = measurement.std_dev
+				measurement.mval = measurement.meas_value + np.multiply(3*zdev,err_pu[index])
 
 	def meas_creation_test(self, err_pu):
 		""" 
@@ -171,7 +179,12 @@ class Measurents_set():
 		This function takes as paramenter a random distribution. 
 		"""
 		for index, measurement in enumerate(self.measurements):
+			if measurement.meas_type not in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
+				measurement.std_dev = np.absolute(measurement.meas_value)*measurement.std_dev
+			elif measurement.meas_type in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
+				measurement.std_dev = measurement.std_dev
 			measurement.mval = measurement.meas_value + measurement.std_dev*err_pu[index]
+			#measurement.mval = measurement.meas_value + measurement.std_dev*err_pu[index]
 	
 	def getMeasurements(self, type):
 		"""
@@ -217,22 +230,10 @@ class Measurents_set():
 			#the weight is small and can bring instability during matrix inversion, so we "cut" everything below 10^-6
 			if measurement.std_dev<10**(-6):
 				measurement.std_dev = 10**(-6)
-			#weights[index] = (measurement.std_dev/3)**(-2)
 			weights[index] = (measurement.std_dev)**(-2)
 
 		return weights
 	
-	def getMeasValues(self):
-		"""
-		for test purposes
-		returns an array with all measured values 
-		"""
-		meas_val = np.zeros(len(self.measurements))
-		for index, measurement in enumerate(self.measurements):
-			meas_val[index] = measurement.meas_value
-		
-		return meas_val
-		
 	def getmVal(self):
 		"""
 		returns an array with all measured values (affected by uncertainty)
@@ -276,12 +277,39 @@ class Measurents_set():
 		
 		return std_dev
 
-	def getmVal_test(self):
+	def getMeasValues(self, type=None):
+		"""
+		for test purposes
+		returns an array with all measured values 
+		"""
+		if type is None:
+			meas_val = np.zeros(len(self.measurements))
+			for index, measurement in enumerate(self.measurements):
+				meas_val[index] = measurement.meas_value		
+		else:
+			meas_val = np.zeros(self.getNumberOfMeasurements(type=type))
+			idx=0
+			for index, measurement in enumerate(self.measurements):
+				if measurement.meas_type is type:
+					meas_val[idx] = measurement.meas_value
+					idx += 1
+
+		return meas_val
+
+	def getmVal_test(self, type=None):
 		"""
 		returns an array with all measured values (affected by uncertainty)
 		"""
-		mVal = np.zeros(len(self.measurements))
-		for index, measurement in enumerate(self.measurements):
-			mVal[index] = measurement.mval		
+		if type is None:
+			mVal = np.zeros(len(self.measurements))
+			for index, measurement in enumerate(self.measurements):
+				mVal[index] = measurement.mval		
+		else:
+			mVal = np.zeros(self.getNumberOfMeasurements(type=type))
+			idx=0
+			for index, measurement in enumerate(self.measurements):
+				if measurement.meas_type is type:
+					mVal[idx] = measurement.mval
+					idx += 1
 
 		return mVal
