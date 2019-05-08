@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import cimpy
 from  acs.state_estimation import network
 from  acs.state_estimation import measurement
-from  acs.state_estimation import nv_state_estimator_cim
+from  acs.state_estimation import 
 from  acs.state_estimation import results
 
 logging.basicConfig(filename='CIGRE.log', level=logging.INFO, filemode='w')
@@ -47,7 +47,7 @@ for node in powerflow_results.nodes:
 measurements_set.meas_creation()
 
 # Perform state estimation
-state_estimation_results_ideal = nv_state_estimator_cim.DsseCall(system, measurements_set) 
+state_estimation_results_ideal = .DsseCall(system, measurements_set) 
 
 # Show numerical comparison
 Vest_ideal = state_estimation_results_ideal.get_voltages(pu=False)
@@ -68,7 +68,7 @@ for node in powerflow_results.nodes:
 measurements_set.meas_creation()
 
 # Perform state estimation
-state_estimation_results_real = nv_state_estimator_cim.DsseCall(system, measurements_set) 
+state_estimation_results_real = .DsseCall(system, measurements_set) 
 
 # Show numerical comparison
 Vest_real = state_estimation_results_real.get_voltages(pu=False)

@@ -1,6 +1,6 @@
 import logging
 from  acs.state_estimation import network
-from  acs.state_estimation import nv_powerflow_cim
+from  acs.state_estimation import nv_powerflow
 from  acs.state_estimation import results
 import cimpy
 
@@ -19,7 +19,7 @@ base_apparent_power = 25    #MW
 system.load_cim_data(res, base_apparent_power)
 
 #Execute power flow analysis
-results_pf, num_iter_cim = nv_powerflow_cim.solve(system)
+results_pf, num_iter_cim = nv_powerflow.solve(system)
 
 #print node voltages
 print("results_pf.voltages: ")
