@@ -1,0 +1,3 @@
+[submodule "dependencies/cimpy"]
+	path = dependencies/cimpy
+	url = git@git.rwth-aachen.de:acs/core/cim/cimpy.git

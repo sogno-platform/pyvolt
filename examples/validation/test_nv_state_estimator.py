@@ -5,12 +5,11 @@ import matplotlib.pyplot as plt
 import cimpy
 from  acs.state_estimation import network
 from  acs.state_estimation import measurement
-from  acs.state_estimation import 
 from  acs.state_estimation import results
 
 logging.basicConfig(filename='CIGRE.log', level=logging.INFO, filemode='w')
 
-cim_xml_path = r"..\..\..\cim-grid-data\CIGRE_MV\CIGRE_MV_no_tapchanger_With_LoadFlow_Results"
+cim_xml_path = r".\examples\quickstart\sample_data"
 cim_xml_files=[cim_xml_path + r"\Rootnet_FULL_NE_06J16h_DI.xml", 
 		   cim_xml_path + r"\Rootnet_FULL_NE_06J16h_EQ.xml",
 		   cim_xml_path + r"\Rootnet_FULL_NE_06J16h_SV.xml",
@@ -23,7 +22,7 @@ base_apparent_power = 25    #MW
 system.load_cim_data(res, base_apparent_power)
 
 #read Input-Ergebnisdatei and store it in a results.Results object
-loadflow_results_path = r"..\..\..\reference-results\DPsim\StaticPhasor"
+loadflow_results_path = r".\examples\quickstart\sample_data"
 loadflow_results_file = loadflow_results_path + r"\CIGRE-MV-NoTap.csv" 
 powerflow_results = results.Results(system)
 powerflow_results.read_data_dpsim(loadflow_results_file)

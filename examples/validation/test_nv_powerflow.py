@@ -6,7 +6,7 @@ import cimpy
 
 logging.basicConfig(filename='CIGRE.log', level=logging.INFO, filemode='w')
 
-cim_xml_path = r"..\..\..\cim-grid-data\CIGRE_MV\CIGRE_MV_no_tapchanger_With_LoadFlow_Results"
+cim_xml_path = r".\examples\quickstart\sample_data"
 cim_xml_files=[cim_xml_path + r"\Rootnet_FULL_NE_06J16h_DI.xml", 
 		   cim_xml_path + r"\Rootnet_FULL_NE_06J16h_EQ.xml",
 		   cim_xml_path + r"\Rootnet_FULL_NE_06J16h_SV.xml",
@@ -28,7 +28,7 @@ for node in results_pf.nodes:
 print("\n\n\n")
 
 # Show numerical comparison 
-loadflow_results_path = r"..\..\..\reference-results\DPsim\StaticPhasor"
+loadflow_results_path = r".\examples\quickstart\sample_data"
 
 loadflow_results_file = loadflow_results_path + r"\CIGRE-MV-NoTap.csv"
 results_dpsim = results.Results(system)
