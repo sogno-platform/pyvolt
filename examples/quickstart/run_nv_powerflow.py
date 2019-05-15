@@ -6,7 +6,7 @@ import cimpy
 
 logging.basicConfig(filename='CIGRE.log', level=logging.INFO, filemode='w')
 
-cim_xml_path = r".\examples\quickstart\sample_data"
+cim_xml_path = r".\sample_data"
 cim_xml_files=[cim_xml_path + r"\Rootnet_FULL_NE_06J16h_DI.xml", 
 		   cim_xml_path + r"\Rootnet_FULL_NE_06J16h_EQ.xml",
 		   cim_xml_path + r"\Rootnet_FULL_NE_06J16h_SV.xml",
