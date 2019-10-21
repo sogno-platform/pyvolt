@@ -3,7 +3,24 @@ from .network import BusType
 from .results import Results
 
 def solve(system):
-	"""It performs Power Flow by using rectangular node voltage state variables."""
+	"""It performs powerflow by using rectangular node voltage state variables and considering the current mismatch function.
+    
+    Solve the non-linear powerflow problem stated by
+
+    r = z-h(state) = 0
+
+    following the Newton-Raphson approach
+
+    delta_state = H^-1 * r
+    new_state = old_state + delta_state
+
+    r: residual function (current mismatch) 
+    z: expected currents
+    state: rectangular voltages (i.e. [V0_re, V1_re, ..., VN_re, V0_im, V1_im, ... , VN_im])
+    h: currents calculated from state
+    H: Jacobian matrix
+    V: same as state but with complex numbers (i.e. [V0_re+j*V0_im, V1_re+j*V1_im, ...])
+    """
 	
 	nodes_num = len(system.nodes)
 	branches_num = len(system.branches)
