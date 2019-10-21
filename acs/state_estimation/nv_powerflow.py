@@ -63,8 +63,7 @@ def solve(system):
 	V = np.ones(nodes_num) + 1j* np.zeros(nodes_num)
 	num_iter = 0
 	
-	state = np.ones(2*branches_num)
-	state = np.concatenate((np.array([1,0]),state),axis=0)
+	state = np.concatenate((np.ones(nodes_num),np.zeros(nodes_num)),axis=0)
 	
 	while diff > epsilon:
 		for i in range(0, nodes_num):
