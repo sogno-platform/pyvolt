@@ -22,10 +22,11 @@ base_apparent_power = 25    #MW
 system.load_cim_data(res, base_apparent_power)
 
 #Execute power flow analysis
-results_pf, num_iter_cim = nv_powerflow.solve(system)
+results_pf, num_iter = nv_powerflow.solve(system)
 
 #print node voltages
-print("results_pf.voltages: ")
+print("Powerflow converged in " + str(num_iter) + " iterations.\n")
+print("Results: \n")
 for node in results_pf.nodes:
     print('{}={}'.format(node.topology_node.uuid, node.voltage))
 print("\n\n\n")
