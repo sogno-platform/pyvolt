@@ -3,6 +3,9 @@ from  acs.state_estimation import network
 from  acs.state_estimation import nv_powerflow
 from  acs.state_estimation import results
 import cimpy
+import os
+
+os.chdir(os.path.dirname(__file__))
 
 logging.basicConfig(filename='CIGRE.log', level=logging.INFO, filemode='w')
 

@@ -9,6 +9,9 @@ from  acs.state_estimation import nv_state_estimator
 from  acs.state_estimation import measurement
 from  acs.state_estimation import results
 import cimpy
+import os
+
+os.chdir(os.path.dirname(__file__))
 
 logging.basicConfig(filename='CIGRE.log', level=logging.INFO, filemode='w')
 
