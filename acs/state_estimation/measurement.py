@@ -25,10 +25,10 @@ class Measurement():
 		"""
 		Creates a measurement, which is used by the estimation module. Possible types of measurements are: v, p, q, i, Vpmu and Ipmu
 		@element: pointer to the topology_node / topology_branch (object of class network.Node / network.Branch)
-		@element_type: Clarifies which element is measured.
-		@meas_type: 
-		@meas_value: measurement value.
-		@unc: Measurement uncertainty in percent
+		@element_type: clarifies which type of element is considered (object of enum ElemType, e.g. ElemType.Node)
+		@meas_type: clarifies which quantity is measured (object of enum MeasType, e.g. MeasType.V_mag)
+		@meas_value: actual measurement value 
+		@unc: measurement uncertainty in percent
 		"""
 		
 		if not isinstance(element_type, ElemType):
@@ -53,6 +53,18 @@ class Measurents_set():
 		to add elements to the measurements array
 		"""
 		self.measurements.append(Measurement(element, element_type, meas_type, meas_value, unc))
+
+	def update_measurement(self, element_uuid, meas_type, meas_value, value_in_pu=True):
+		"""
+		to update the meas_value of a measurment in the measurements array
+		"""
+
+		for meas in self.measurements:
+			if meas.element.uuid == element_uuid and meas.meas_type == meas_type:
+				if not value_in_pu:
+					if meas.meas_type == MeasType.Vpmu_mag:
+						meas_value = meas_value/(meas.element.baseVoltage*1000/np.sqrt(3)) # TODO - Fix phase-to-phase voltage problem
+				meas.meas_value = meas_value
 	
 	def read_measurements_from_file(self, powerflow_results, file_name):
 		"""
@@ -313,3 +325,9 @@ class Measurents_set():
 					idx += 1
 
 		return mVal
+
+	@staticmethod
+	def mergeMeasurementSets(meas_set_1, meas_set_2):
+		meas_set = Measurents_set()
+		meas_set.measurements = meas_set_1.measurements + meas_set_2.measurements
+		return meas_set
