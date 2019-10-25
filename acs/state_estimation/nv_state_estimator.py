@@ -560,14 +560,14 @@ def update_W_matrix(measurements, weights, W, type):
     """
 
     if type == "Vpmu":
-        # get index of all measurements of type "MeasType.Vpmu_mag" in the array Measurents_set.measurements
+        # get index of all measurements of type "MeasType.Vpmu_mag" in the array MeasurementSet.measurements
         index_mag = measurements.getIndexOfMeasurements(MeasType.Vpmu_mag)
-        # get index of all measurements of type "MeasType.Vpmu_phase" in the array Measurents_set.measurements
+        # get index of all measurements of type "MeasType.Vpmu_phase" in the array MeasurementSet.measurements
         index_phase = measurements.getIndexOfMeasurements(MeasType.Vpmu_phase)
     elif type == "Ipmu":
-        # get index of all measurements of type "MeasType.Ipmu_mag" in the array Measurents_set.measurements
+        # get index of all measurements of type "MeasType.Ipmu_mag" in the array MeasurementSet.measurements
         index_mag = measurements.getIndexOfMeasurements(MeasType.Ipmu_mag)
-        # get index of all measurements of type "MeasType.Ipmu_phase" in the array Measurents_set.measurements
+        # get index of all measurements of type "MeasType.Ipmu_phase" in the array MeasurementSet.measurements
         index_phase = measurements.getIndexOfMeasurements(MeasType.Ipmu_phase)
 
     for index, (idx_mag, idx_theta) in enumerate(zip(index_mag, index_phase)):
@@ -693,7 +693,7 @@ def convertSinjMeasIntoCurrents(measurements, V, z, pidx, qidx):
 
     @param measurements: Vector of measurements in Input (voltages, currents, powers)
     @param V: vector of the estimated voltages
-    @param z: array with all measured values (affected by uncertainty) --> Measurents_set.getmVal
+    @param z: array with all measured values (affected by uncertainty) --> MeasurementSet.getmVal
     @param pidx: array which contains the index of measurements type Sinj_real in measurements.measurements
     @param qidx: array which contains the index of measurements type Sinj_imag in measurements.measurements
     returns: updated z array
@@ -720,7 +720,7 @@ def convertSbranchMeasIntoCurrents(measurements, V, z, p1br, q1br, p2br, q2br):
 
     @param measurements: Vector of measurements in Input (voltages, currents, powers)
     @param V: vector of the estimated voltages
-    @param z: array with all measured values (affected by uncertainty) --> Measurents_set.getmVal
+    @param z: array with all measured values (affected by uncertainty) --> MeasurementSet.getmVal
     @param p1br: array which contains the index of measurements type S1_real in measurements.measurements
     @param q1br: array which contains the index of measurements type S1_imag in measurements.measurements
     @param p2br: array which contains the index of measurements type S2_real in measurements.measurements

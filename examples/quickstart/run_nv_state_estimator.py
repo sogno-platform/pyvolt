@@ -41,7 +41,7 @@ Pmu_phase_unc = 0
 
 # Create measurements data structures
 """use all node voltages as measures"""
-measurements_set = measurement.Measurents_set()
+measurements_set = measurement.MeasurementSet()
 for node in results_pf.nodes:
     measurements_set.create_measurement(node.topology_node, measurement.ElemType.Node, measurement.MeasType.Vpmu_mag,
                                         np.absolute(node.voltage_pu), Pmu_mag_unc)

@@ -48,7 +48,7 @@ class Measurement():
         self.mval = 0.0  # measured values (affected by uncertainty)
 
 
-class Measurents_set():
+class MeasurementSet():
     def __init__(self):
         self.measurements = []  # array with all measurements
 
@@ -206,7 +206,7 @@ class Measurents_set():
 
     def getMeasurements(self, type):
         """
-        return an array with all measurements of type "type" in the array Measurents_set.measurements.
+        return an array with all measurements of type "type" in the array MeasurementSet.measurements.
         """
         measurements = []
         for measurement in self.measurements:
@@ -217,7 +217,7 @@ class Measurents_set():
 
     def getNumberOfMeasurements(self, type):
         """
-        return number of measurements of type "type" in the array Measurents_set.measurements
+        return number of measurements of type "type" in the array MeasurementSet.measurements
         """
         number = 0
         for measurement in self.measurements:
@@ -228,7 +228,7 @@ class Measurents_set():
 
     def getIndexOfMeasurements(self, type):
         """
-        return index of all measurements of type "type" in the array Measurents_set.measurements
+        return index of all measurements of type "type" in the array MeasurementSet.measurements
         """
         idx = np.zeros(self.getNumberOfMeasurements(type), dtype=int)
         i = 0
@@ -334,6 +334,6 @@ class Measurents_set():
 
     @staticmethod
     def mergeMeasurementSets(meas_set_1, meas_set_2):
-        meas_set = Measurents_set()
+        meas_set = MeasurementSet()
         meas_set.measurements = meas_set_1.measurements + meas_set_2.measurements
         return meas_set
