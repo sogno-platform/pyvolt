@@ -16,7 +16,7 @@ class Node():
 		self.index = index
 		self.baseVoltage = base_voltage
 		self.base_apparent_power = base_apparent_power
-		self.base_current = self.base_apparent_power/self.baseVoltage
+		self.base_current = self.base_apparent_power/self.baseVoltage/np.sqrt(3)
 		self.type = BusType[bus_type]
 		self.voltage = v_mag*np.cos(v_phase) + 1j * v_mag*np.sin(v_phase)
 		self.power = complex(p, q)
@@ -29,7 +29,7 @@ class Branch():
 		self.uuid = uuid
 		self.baseVoltage = base_voltage
 		self.base_apparent_power = base_apparent_power
-		self.base_current = self.base_apparent_power/self.baseVoltage
+		self.base_current = self.base_apparent_power/self.baseVoltage/np.sqrt(3)
 		self.base_impedance = base_voltage**2/self.base_apparent_power
 		self.start_node = start_node
 		self.end_node = end_node
