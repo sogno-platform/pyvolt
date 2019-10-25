@@ -54,7 +54,7 @@ class Measurents_set():
 		"""
 		self.measurements.append(Measurement(element, element_type, meas_type, meas_value, unc))
 
-	def update_measurement(self, element_uuid, meas_type, meas_value, value_in_pu=True):
+	def update_measurement(self, element_uuid, meas_type, meas_data, value_in_pu=True):
 		"""
 		to update the meas_value of a measurment in the measurements array
 		"""
@@ -63,8 +63,8 @@ class Measurents_set():
 			if meas.element.uuid == element_uuid and meas.meas_type == meas_type:
 				if not value_in_pu:
 					if meas.meas_type == MeasType.Vpmu_mag:
-						meas_value = meas_value/(meas.element.baseVoltage*1000/np.sqrt(3)) # TODO - Fix phase-to-phase voltage problem
-				meas.meas_value = meas_value
+						mval = meas_data/(meas.element.baseVoltage*1000/np.sqrt(3)) # TODO - Fix phase-to-phase voltage problem
+				meas.mval = mval
 	
 	def read_measurements_from_file(self, powerflow_results, file_name):
 		"""
