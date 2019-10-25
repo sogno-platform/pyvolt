@@ -95,7 +95,7 @@ def DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matr
     q2br = measurements.getIndexOfMeasurements(type=MeasType.S2_imag)
 
     # get an array with all measured values (affected by uncertainty)
-    z = measurements.getmVal()
+    z = measurements.getMeasValues()
 
     V = np.ones(nodes_num) + 1j * np.zeros(nodes_num)
     State = np.concatenate((np.ones(nodes_num), np.zeros(nodes_num)), axis=0)
@@ -187,7 +187,7 @@ def DssePmu(nodes_num, measurements, Gmatrix, Bmatrix, Adj):
     W = update_W_matrix(measurements, weights, W, "Ipmu")
 
     # get an array with all measured values (affected by uncertainty)
-    z = measurements.getmVal()
+    z = measurements.getMeasValues()
 
     H = np.concatenate((H2, H3, H4, H5, H7, H8, H9, H10), axis=0)
     WH = np.inner(W, H.transpose())
@@ -205,7 +205,7 @@ def DssePmu(nodes_num, measurements, Gmatrix, Bmatrix, Adj):
     q2br = measurements.getIndexOfMeasurements(type=MeasType.S2_imag)
 
     # get an array with all measured values (affected by uncertainty)
-    z = measurements.getmVal()
+    z = measurements.getMeasValues()
 
     V = np.ones(nodes_num) + 1j * np.zeros(nodes_num)
     State = np.concatenate((np.ones(nodes_num), np.zeros(nodes_num)), axis=0)
@@ -291,7 +291,7 @@ def DsseMixed(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_mat
     q2br = measurements.getIndexOfMeasurements(type=MeasType.S2_imag)
 
     # get an array with all measured values (affected by uncertainty)
-    z = measurements.getmVal()
+    z = measurements.getMeasValues()
 
     V = np.ones(nodes_num) + 1j * np.zeros(nodes_num)
     State = np.concatenate((np.ones(nodes_num), np.zeros(nodes_num)), axis=0)
@@ -499,8 +499,8 @@ def calculateJacobiVoltagePmu(measurements, nodes_num, Gmatrix, Bmatrix):
 
     # TODO: index of Vmag = index of Vphase???
     for index, measurement in enumerate(Vpmu_mag_meas):
-        vamp = measurement.meas_value
-        vtheta = Vpmu_phase_meas[index].meas_value
+        vamp = measurement.meas_value_ideal
+        vtheta = Vpmu_phase_meas[index].meas_value_ideal
         m = measurement.element.index
         H7[index][m] = 1
         m2 = m + nodes_num
@@ -530,8 +530,8 @@ def calculateJacobiCurrentPmu(measurements, nodes_num, Gmatrix, Bmatrix):
     H10 = np.zeros((len(Ipmu_mag_meas), 2 * nodes_num))
 
     for index, measurement in enumerate(Ipmu_mag_meas):
-        iamp = measurement.meas_value
-        itheta = Ipmu_phase_meas[index].meas_value
+        iamp = measurement.meas_value_ideal
+        itheta = Ipmu_phase_meas[index].meas_value_ideal
         m = measurement.element.start_node.index
         n = measurement.element.end_node.index
         H9[index][m] = - Gmatrix[m][n]
@@ -571,8 +571,8 @@ def update_W_matrix(measurements, weights, W, type):
         index_phase = measurements.getIndexOfMeasurements(MeasType.Ipmu_phase)
 
     for index, (idx_mag, idx_theta) in enumerate(zip(index_mag, index_phase)):
-        value_amp = measurements.measurements[idx_mag].mval
-        value_theta = measurements.measurements[idx_theta].mval
+        value_amp = measurements.measurements[idx_mag].meas_value
+        value_theta = measurements.measurements[idx_theta].meas_value
         rot_mat = np.array([[np.cos(value_theta), - value_amp * np.sin(value_theta)],
                             [np.sin(value_theta), value_amp * np.cos(value_theta)]])
         starting_cov = np.array([[weights[idx_mag], 0], [0, weights[idx_theta]]])
@@ -693,16 +693,16 @@ def convertSinjMeasIntoCurrents(measurements, V, z, pidx, qidx):
 
     @param measurements: Vector of measurements in Input (voltages, currents, powers)
     @param V: vector of the estimated voltages
-    @param z: array with all measured values (affected by uncertainty) --> MeasurementSet.getmVal
+    @param z: array with all measured values (affected by uncertainty) --> MeasurementSet.getMeasValues
     @param pidx: array which contains the index of measurements type Sinj_real in measurements.measurements
     @param qidx: array which contains the index of measurements type Sinj_imag in measurements.measurements
     returns: updated z array
     """
 
     for p_index, q_index in zip(pidx, qidx):
-        # get values of the measurements p_inj and q_inj   (affected by uncertainty-->mval)
-        p_inj = measurements.measurements[p_index].mval
-        q_inj = measurements.measurements[q_index].mval
+        # get values of the measurements p_inj and q_inj   (affected by uncertainty-->meas_value)
+        p_inj = measurements.measurements[p_index].meas_value
+        q_inj = measurements.measurements[q_index].meas_value
         # get index of the node
         node_index = measurements.measurements[
             p_index].element.index  # == measurements.measurements[q_index].element.index
@@ -720,7 +720,7 @@ def convertSbranchMeasIntoCurrents(measurements, V, z, p1br, q1br, p2br, q2br):
 
     @param measurements: Vector of measurements in Input (voltages, currents, powers)
     @param V: vector of the estimated voltages
-    @param z: array with all measured values (affected by uncertainty) --> MeasurementSet.getmVal
+    @param z: array with all measured values (affected by uncertainty) --> MeasurementSet.getMeasValues
     @param p1br: array which contains the index of measurements type S1_real in measurements.measurements
     @param q1br: array which contains the index of measurements type S1_imag in measurements.measurements
     @param p2br: array which contains the index of measurements type S2_real in measurements.measurements
@@ -728,9 +728,9 @@ def convertSbranchMeasIntoCurrents(measurements, V, z, p1br, q1br, p2br, q2br):
     returns: updated z array
     """
     for pbr_index, qbr_index in zip(p1br, q1br):
-        # get values of the measurements pbr_inj and qbr_inj   (affected by uncertainty-->mval)
-        p_br = measurements.measurements[pbr_index].mval
-        q_br = measurements.measurements[qbr_index].mval
+        # get values of the measurements pbr_inj and qbr_inj   (affected by uncertainty-->meas_value)
+        p_br = measurements.measurements[pbr_index].meas_value
+        q_br = measurements.measurements[qbr_index].meas_value
         # get index of the start node
         node_index = measurements.measurements[
             pbr_index].element.start_node.index  # == measurements.measurements[qbr_index].element.start_node.index
@@ -738,9 +738,9 @@ def convertSbranchMeasIntoCurrents(measurements, V, z, p1br, q1br, p2br, q2br):
         z[qbr_index] = (p_br * V[node_index].imag - q_br * V[node_index].real) / (np.absolute(V[node_index]) ** 2)
 
     for pbr_index, qbr_index in zip(p2br, q2br):
-        # get values of the measurements pbr_inj and qbr_inj   (affected by uncertainty-->mval)
-        p_br = measurements.measurements[pbr_index].mval
-        q_br = measurements.measurements[qbr_index].mval
+        # get values of the measurements pbr_inj and qbr_inj   (affected by uncertainty-->meas_value)
+        p_br = measurements.measurements[pbr_index].meas_value
+        q_br = measurements.measurements[qbr_index].meas_value
         # get index of the start node
         node_index = measurements.measurements[
             pbr_index].element.end_node.index  # == measurements.measurements[qbr_index].element.start_node.index
