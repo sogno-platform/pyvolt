@@ -66,17 +66,18 @@ class System():
                 qinj = 0.0
                 for uuid2, element2 in res.items():
                     if element2.__class__.__name__ == "SvVoltage":
-                        if element2.getNodeUUID() == uuid:
+                        if element2.TopologicalNode[0].mRID == uuid:
                             vmag = element2.v
                             vphase = element2.angle
                             break
                 for uuid2, element2 in res.items():
                     if element2.__class__.__name__ == "SvPowerFlow":
-                        if element2.getNodeUUID() == uuid:
+                        if element2.Terminal[0].TopologicalNode[0].mRID == uuid:
                             pInj += element2.p
                             qinj += element2.q
+                            break
                 node_type = self._getNodeType(element)
-                base_voltage = element.BaseVoltage.nominalVoltage
+                base_voltage = element.BaseVoltage[0].nominalVoltage
                 self.nodes.append(Node(uuid=uuid, base_voltage=base_voltage, v_mag=vmag,
                                        base_apparent_power=base_apparent_power, v_phase=vphase,
                                        p=pInj, q=qinj, index=index, bus_type=node_type))
@@ -92,7 +93,7 @@ class System():
                     if element.endNodeID == node.uuid:
                         endNode = node
                         break
-                base_voltage = element.BaseVoltage.nominalVoltage
+                base_voltage = element.BaseVoltage[0].nominalVoltage
                 self.branches.append(Branch(uuid=uuid, r=element.r, x=element.x, start_node=startNode,
                                             end_node=endNode, base_voltage=base_voltage,
                                             base_apparent_power=base_apparent_power))
@@ -107,7 +108,7 @@ class System():
                         endNode = self.nodes[i]
                         break
                 # base voltage = high voltage side (=primaryConnection)
-                base_voltage = element.primaryConnection.BaseVoltage.nominalVoltage
+                base_voltage = element.primaryConnection.BaseVoltage[0].nominalVoltage
                 self.branches.append(Branch(uuid=uuid, r=element.primaryConnection.r, x=element.primaryConnection.x,
                                             start_node=startNode, end_node=endNode, base_voltage=base_voltage,
                                             base_apparent_power=base_apparent_power))
