@@ -4,8 +4,12 @@ from acs.state_estimation import nv_powerflow
 from acs.state_estimation import results
 import cimpy
 import os
+import csv
+from villas.dataprocessing.readtools import read_timeseries_dpsim
 
-os.chdir(os.path.dirname(__file__))
+
+#print(os.path.dirname(__file__))
+#os.chdir(os.path.dirname(__file__))
 
 logging.basicConfig(filename='CIGRE.log', level=logging.INFO, filemode='w')
 
@@ -30,7 +34,15 @@ results_pf, num_iter = nv_powerflow.solve(system)
 
 # print node voltages
 print("Powerflow converged in " + str(num_iter) + " iterations.\n")
-print("Results: \n")
-for node in results_pf.nodes:
-    print('{}={}'.format(node.topology_node.uuid, node.voltage))
+#print("Results: \n")
+#for node in results_pf.nodes:
+#    print('{}={}'.format(node.topology_node.uuid, node.voltage))
 print("\n\n\n")
+
+#load results of csv file:
+csv_file = xml_path + r".\CIGRE-MV-NoTap.csv"
+results_CIGRE = results.Results(system)
+results_CIGRE.read_data_dpsim(csv_file)
+
+# Show numerical comparison
+print(results_CIGRE.get_voltages(pu=False)/1000-results_pf.get_voltages(pu=False))
