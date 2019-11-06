@@ -58,66 +58,117 @@ class System():
         To fill the vectors node, branch, bR, bX, P and Q
         """
         index = 0
-        for uuid, element in res.items():
-            if element.__class__.__name__ == "TopologicalNode":
+        for uuid_TPNode, TPNode in res.items():
+            if TPNode.__class__.__name__ == "TopologicalNode":
                 vmag = 0.0
                 vphase = 0.0
                 pInj = 0.0
                 qinj = 0.0
-                for uuid2, element2 in res.items():
-                    if element2.__class__.__name__ == "SvVoltage":
-                        if element2.TopologicalNode[0].mRID == uuid:
-                            vmag = element2.v
-                            vphase = element2.angle
+                for uuid_obj_SvVoltage, obj_SvVoltage in res.items():
+                    if obj_SvVoltage.__class__.__name__ == "SvVoltage":
+                        if obj_SvVoltage.TopologicalNode[0].name == uuid_TPNode:
+                            vmag = obj_SvVoltage.v
+                            vphase = obj_SvVoltage.angle
                             break
-                for uuid2, element2 in res.items():
-                    if element2.__class__.__name__ == "SvPowerFlow":
-                        if element2.Terminal[0].TopologicalNode[0].mRID == uuid:
-                            pInj += element2.p
-                            qinj += element2.q
+                for uuid_obj_SvPowerFlow, obj_SvPowerFlow in res.items():
+                    if obj_SvPowerFlow.__class__.__name__ == "SvPowerFlow":
+                        if obj_SvPowerFlow.Terminal[0].TopologicalNode[0].name == uuid_TPNode:
+                            for node in obj_SvPowerFlow.Terminal[0].TopologicalNode:
+                                pInj += obj_SvPowerFlow.p
+                                qinj += obj_SvPowerFlow.q
                             break
-                node_type = self._getNodeType(element)
-                base_voltage = element.BaseVoltage[0].nominalVoltage
-                self.nodes.append(Node(uuid=uuid, base_voltage=base_voltage, v_mag=vmag,
+                node_type = self._getNodeType(TPNode)
+                base_voltage = TPNode.BaseVoltage[0].nominalVoltage
+                self.nodes.append(Node(uuid=uuid_TPNode, base_voltage=base_voltage, v_mag=vmag,
                                        base_apparent_power=base_apparent_power, v_phase=vphase,
                                        p=pInj, q=qinj, index=index, bus_type=node_type))
                 index = index + 1
-
+        
         for uuid, element in res.items():
-            if element.__class__.__name__ == "ACLineSegment":
+            if (element.__class__.__name__ == "ACLineSegment") or (element.__class__.__name__ == "PowerTransformer"):
+                start_node_id, end_node_id = self._get_NodeIDs(res, element.name)
+                start_node = None
+                end_node = None
+
                 for node in self.nodes:
-                    if element.startNodeID == node.uuid:
-                        startNode = node
-                        break
-                for node in self.nodes:
-                    if element.endNodeID == node.uuid:
-                        endNode = node
-                        break
-                base_voltage = element.BaseVoltage[0].nominalVoltage
-                self.branches.append(Branch(uuid=uuid, r=element.r, x=element.x, start_node=startNode,
-                                            end_node=endNode, base_voltage=base_voltage,
-                                            base_apparent_power=base_apparent_power))
-                continue
-            elif element.__class__.__name__ == "PowerTransformer":
-                for i in range(len(self.nodes)):
-                    if element.startNodeID == self.nodes[i].uuid:
-                        startNode = self.nodes[i]
-                        break
-                for i in range(len(self.nodes)):
-                    if element.endNodeID == self.nodes[i].uuid:
-                        endNode = self.nodes[i]
-                        break
-                # base voltage = high voltage side (=primaryConnection)
-                base_voltage = element.primaryConnection.BaseVoltage[0].nominalVoltage
-                self.branches.append(Branch(uuid=uuid, r=element.primaryConnection.r, x=element.primaryConnection.x,
-                                            start_node=startNode, end_node=endNode, base_voltage=base_voltage,
-                                            base_apparent_power=base_apparent_power))
-                continue
-            else:
-                continue
+                    if start_node_id == node.uuid:
+                        start_node = node
+                    elif end_node_id == node.uuid:
+                        end_node = node
+
+                if element.__class__.__name__ == "ACLineSegment":
+                    base_voltage = element.BaseVoltage[0].nominalVoltage
+                    self.branches.append(Branch(uuid=uuid, r=element.r, x=element.x, start_node=start_node,
+                                                end_node=end_node, base_voltage=base_voltage,
+                                                base_apparent_power=base_apparent_power))
+                elif element.__class__.__name__ == "PowerTransformer":
+                    # base voltage = high voltage side (=primaryConnection)
+                    primary_connection = self._get_primary_connection(res, element.name)
+                    base_voltage = primary_connection.BaseVoltage[0].nominalVoltage
+                    self.branches.append(Branch(uuid=uuid, r=primary_connection.r, x=primary_connection.x,
+                                                start_node=start_node, end_node=end_node, base_voltage=base_voltage,
+                                                base_apparent_power=base_apparent_power))
 
         # calculate admitance matrix
         self.Ymatrix_calc()
+
+    def _get_NodeIDs(self, start_dict, elem_name):
+        """
+        get the startNodeId and endNodeID of the element with ID=mRID
+        This function can only used with the elements ACLineSegment, PowerTransformer, Switch and EnergyConsumer
+        :param start_dict: result of cimpy.cim_import
+        :param elem_name: 
+        :return tuple: (startNodeID, endNodeID)
+        """
+        startNodeID = ""
+        endNodeID = ""
+        list_elements = ["ACLineSegment", "PowerTransformer", "Switch", "EnergyConsumer"]
+        
+        #search for elements type 'Terminal'
+        for value, key in start_dict.items():
+            if key.__class__.__name__=='Terminal':
+                #TODO: has always the list ConductingEquipment only one element?????
+                conductingEquipment = key.ConductingEquipment[0]
+                if (conductingEquipment.name != elem_name):
+                    continue
+                elif conductingEquipment.__class__.__name__ in list_elements:
+                    sequenceNumber = key.sequenceNumber
+                    #TODO: has always the list TopologicalNode only one element?????
+                    TopologicalNode = key.TopologicalNode[0]
+                    if sequenceNumber == 1:
+                        startNodeID = TopologicalNode.name
+                    elif sequenceNumber == 2:
+                        endNodeID = TopologicalNode.name
+        
+        return (startNodeID, endNodeID)
+
+    def _get_primary_connection(self, start_dict, elem_name):
+        """
+        get primaryConnection of the powertransformer with ID = elem_id
+        :param start_dict: result of cimpy.cim_import
+        :param elem_name: 
+        :return tuple: (primary_connection, secondary_connection)
+	    """
+        primary_connection = None
+        power_transformer_end = []
+        for uuid, element in start_dict.items():
+            #search for two elements of class powertransformerend that point to the powertransformer with ID = elem_id
+            if element.__class__.__name__=='PowerTransformerEnd':
+                if element.PowerTransformer[0].name == elem_name:
+                    power_transformer_end.append(element)
+
+        #TODO: ERROR HANDLING
+        if len(power_transformer_end) !=2:
+            print("ERROR!!!")
+            print(len(power_transformer_end))
+            return -1
+
+        if power_transformer_end[0].BaseVoltage[0].nominalVoltage>=power_transformer_end[1].BaseVoltage[0].nominalVoltage:
+            primary_connection=power_transformer_end[0]
+        elif power_transformer_end[1].BaseVoltage[0].nominalVoltage>=power_transformer_end[0].BaseVoltage[0].nominalVoltage:		
+            primary_connection=power_transformer_end[1]
+
+        return primary_connection
 
     def _getNodeType(self, node):
         """
