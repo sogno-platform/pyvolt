@@ -1,6 +1,6 @@
+import logging
 import numpy as np
 from enum import Enum
-
 
 class BusType(Enum):
     SLACK = 1
@@ -12,9 +12,10 @@ class BusType(Enum):
 
 
 class Node():
-    def __init__(self, uuid='', base_voltage=1.0, base_apparent_power=1.0, v_mag=0.0,
+    def __init__(self, uuid='', name='', base_voltage=1.0, base_apparent_power=1.0, v_mag=0.0,
                  v_phase=0.0, p=0.0, q=0.0, index=0, bus_type='PQ', pu=False):
         self.uuid = uuid
+        self.name = name
         self.index = index
         self.baseVoltage = base_voltage
         self.base_apparent_power = base_apparent_power
@@ -31,6 +32,7 @@ class Node():
         for key in attributes.keys():
             str = str + key + '={}\n'.format(attributes[key])
         return str
+
 
 class Branch():
     def __init__(self, uuid='', r=0.0, x=0.0, start_node=None, end_node=None,
@@ -58,16 +60,101 @@ class Branch():
             str = str + key + '={}\n'.format(attributes[key])
         return str
 
+
+class Breaker():
+    def __init__(self, node_load, node_breaker, branch_connected_with_node_breaker, connected=True):
+        """
+        :param node_load: node which is connected with pq loads
+        :param node_breaker:
+        :param branch_connected_with_node_breaker: ACLineSegment which is connected with node_breaker
+        :param connected: True if the breaker is considered closed and False if the broker is open 
+        """
+        #node_breaker and node_load are used when the breaker is open
+        #only node_breaker is used when the breaker is closed
+        self.node_breaker = node_breaker
+        self.node_load = node_load
+        self.branch_connected_with_node_breaker = branch_connected_with_node_breaker
+        self.connected = connected
+
+    def __str__(self):
+        str = 'class=Breaker\n'
+        attributes = self.__dict__
+        for key in attributes.keys():
+            str = str + key + '={}\n'.format(attributes[key])
+        return str
+
+    def open_breaker(self, system):
+        self.connected == False
+        node_breaker_uuid = self.node_breaker.uuid
+        
+        #check if node_breaker_uuid is in system.nodes
+        is_node_in_list = system.get_node_by_uuid(node_breaker_uuid)
+        
+        #add node_breaker to list system.nodes
+        if not is_node_in_list:
+            system.nodes.append(self.node_breaker)
+        
+        #connect branch_connected_with_node_breaker with node_load
+        if (self.branch_connected_with_node_breaker.start_node.uuid==self.node_load.uuid):
+            self.branch_connected_with_node_breaker.start_node = self.node_breaker
+        elif (self.branch_connected_with_node_breaker.end_node.uuid==self.node_load.uuid):
+            self.branch_connected_with_node_breaker.end_node = self.node_breaker
+
+        #reenumerate nodes
+        system.reindex_nodes_list()
+
+    def close_breaker(self, system):
+        self.connected == True
+        
+        #remove node_breaker from list system.nodes
+        node_breaker_uuid = self.node_breaker.uuid
+        node_to_remove = system.get_node_by_uuid(node_breaker_uuid)
+        if node_to_remove:
+            system.nodes.remove(node_to_remove)
+
+        #connect branch_connected_with_node_breaker with node_load
+        if (self.branch_connected_with_node_breaker.start_node.uuid==self.node_breaker.uuid):
+            self.branch_connected_with_node_breaker.start_node = self.node_load
+        elif (self.branch_connected_with_node_breaker.end_node.uuid==self.node_breaker.uuid):
+            self.branch_connected_with_node_breaker.end_node = self.node_load
+
+        #reenumerate nodes
+        system.reindex_nodes_list()
+
+
 class System():
     def __init__(self):
         self.nodes = []
         self.branches = []
+        self.breakers = []
         self.Ymatrix = np.zeros([], dtype=np.complex)
         self.Adjacencies = np.array([])
 
+    def print_nodes_names(self):
+        for node in self.nodes:
+            print('{} {}'.format(node.name, node.index))
+
+    def print_branchs_names(self):
+        for branch in self.branches:
+            print('{} {}'.format(branch.start_node.name, branch.start_node.index))
+            print('{} {}'.format(branch.end_node.name, branch.end_node.index))
+    
+    def get_node_by_uuid(self, node_uuid):
+        for node in self.nodes:
+            if node.uuid == node_uuid:
+                return node
+        
+        return False
+
+    def reindex_nodes_list(self):
+        index = 0
+        for node in self.nodes:
+            node.index=index
+            index+=1
+
     def load_cim_data(self, res, base_apparent_power):
         """
-        To fill the vectors node, branch, bR, bX, P and Q
+        fill the vectors node and branch
         """
         index = 0
         list_TPNode = [elem for elem in res.values() if elem.__class__.__name__ == "TopologicalNode"]
@@ -77,14 +164,16 @@ class System():
         list_PowerTransformer = [elem for elem in res.values() if elem.__class__.__name__ == "PowerTransformer"]
         list_Terminals = [elem for elem in res.values() if elem.__class__.__name__ == "Terminal"]
         list_PowerTransformerEnds = [elem for elem in res.values() if elem.__class__.__name__ == "PowerTransformerEnd"]
-  
+        list_Breakers = [elem for elem in res.values() if elem.__class__.__name__ == "Breaker"]
+
         #create nodes
         for TPNode in list_TPNode:
             uuid_TPNode = TPNode.mRID
+            name = TPNode.name
             vmag = 0.0
             vphase = 0.0
             pInj = 0.0
-            qinj = 0.0
+            qInj = 0.0
                 
             for obj_SvVoltage in list_SvVoltage:
                 if obj_SvVoltage.TopologicalNode[0].mRID == uuid_TPNode:
@@ -95,26 +184,22 @@ class System():
             for obj_SvPowerFlow in list_SvPowerFlow:
                 if obj_SvPowerFlow.Terminal[0].TopologicalNode[0].mRID == uuid_TPNode:
                     pInj += obj_SvPowerFlow.p
-                    qinj += obj_SvPowerFlow.q                
+                    qInj += obj_SvPowerFlow.q     
         
             base_voltage = TPNode.BaseVoltage[0].nominalVoltage
-            self.nodes.append(Node(uuid=uuid_TPNode, base_voltage=base_voltage, v_mag=vmag,
+            self.nodes.append(Node(name=name, uuid=uuid_TPNode, base_voltage=base_voltage, v_mag=vmag,
                                    base_apparent_power=base_apparent_power, v_phase=vphase,
-                                   p=pInj, q=qinj, index=index))
+                                   p=pInj, q=qInj, index=index))
             index = index + 1
         
+        self._setNodeType(list_Terminals)   
+
         #create branches ACLineSegment
         for ACLineSegment in list_ACLineSegment:
             uuid_ACLineSegment = ACLineSegment.mRID
-            start_node_id, end_node_id = self._get_node_uuids(list_Terminals, uuid_ACLineSegment)
-            start_node = None
-            end_node = None
-
-            for node in self.nodes:
-                if start_node_id == node.uuid:
-                    start_node = node
-                elif end_node_id == node.uuid:
-                    end_node = node
+            nodes = self._get_nodes(list_Terminals, uuid_ACLineSegment)
+            start_node = nodes[0]
+            end_node = nodes[1]
 
             base_voltage = ACLineSegment.BaseVoltage[0].nominalVoltage
             self.branches.append(Branch(uuid=uuid_ACLineSegment, r=ACLineSegment.r, x=ACLineSegment.x, 
@@ -124,16 +209,10 @@ class System():
         #create branches power transformer
         for power_transformer in list_PowerTransformer:
             uuid_power_transformer = power_transformer.mRID
-            start_node_id, end_node_id = self._get_node_uuids(list_Terminals, uuid_power_transformer)
-            start_node = None
-            end_node = None
-
-            for node in self.nodes:
-                if start_node_id == node.uuid:
-                    start_node = node
-                elif end_node_id == node.uuid:
-                    end_node = node
-
+            nodes = self._get_nodes(list_Terminals, uuid_power_transformer)
+            start_node = nodes[0]
+            end_node = nodes[1]
+            
             # base voltage = high voltage side (=primaryConnection)
             primary_connection = self._get_primary_connection(list_PowerTransformerEnds, uuid_power_transformer)
             base_voltage = primary_connection.BaseVoltage[0].nominalVoltage
@@ -141,38 +220,82 @@ class System():
                                         start_node=start_node, end_node=end_node, base_voltage=base_voltage,
                                         base_apparent_power=base_apparent_power))
 
-        self._setNodeType(list_Terminals)
-        
-        # calculate admitance matrix
+        for obj_Breaker in list_Breakers:
+            connected = not(obj_Breaker.normalOpen)
+            nodes = self._get_nodes(list_Terminals, obj_Breaker.mRID)
+            #check which node has loads
+            if (nodes[0].power.real==0) and (nodes[0].power.imag == 0):
+                node_breaker = nodes[0]
+                node_load = nodes[1]
+            elif (nodes[1].power.real==0) and (nodes[1].power.imag == 0):
+                node_breaker = nodes[0]
+                node_load = nodes[1]
+
+            #search for branch_connected_with_node_breaker
+            branch_connected_with_node_breaker=None
+            for branch in self.branches:
+                if branch.start_node.uuid == node_breaker.uuid:
+                    branch_connected_with_node_breaker = branch
+                    break
+                if branch.end_node.uuid == node_breaker.uuid:
+                    branch_connected_with_node_breaker = branch
+                    break
+            
+            self.breakers.append(Breaker(node_breaker=node_breaker, node_load=node_load, 
+                                         connected=connected, 
+                                         branch_connected_with_node_breaker=branch_connected_with_node_breaker))
+
+            #if the breaker.connected == closed --> close broker
+            if connected == False:
+                self.breakers[-1].close_breaker(self)
+            elif connected==True:
+                self.breakers[-1].open_breaker(self)
+
+        #calculate admitance matrix
         self.Ymatrix_calc()
 
-    def _get_node_uuids(self, list_Terminals, elem_uuid):
+    def _get_nodes(self, list_Terminals, elem_uuid):
         """
-        get the uuids of the start and end nodes of the element with uuid=elem_uuid
-        This function can only used with the elements ACLineSegment, PowerTransformer, Switch and EnergyConsumer
+        get the the start and end node of the element with uuid=elem_uuid
+        This function can used only with element which are connected 
+        to 2 topologicalNodes, for example: ACLineSegment, PowerTransformer and Breaker 
         :param list_Terminals: list of all elements of type Terminal
         :param elem_uuid: uuid of the element for which the start and end node ID are searched
-        :return tuple: (startNodeID, endNodeID)
+        :return list: [startNodeID, endNodeID]
         """
-        start_node_uuid = ""
-        end_node_uuid = ""
-        list_elements = ["ACLineSegment", "PowerTransformer", "Switch", "EnergyConsumer"]
+        start_node_uuid = None
+        end_node_uuid = None
         
         for terminal in list_Terminals:
-            #TODO: has always the list ConductingEquipment only one element?????
+            #TODO: has always the list ConductingEquipment only one element?
+            if (len(terminal.ConductingEquipment)!=1):
+                print('WARNING: len(terminal.ConductingEquipment)>1 for the element with uuid={} '.format(elem_uuid))
             conductingEquipment = terminal.ConductingEquipment[0]
+
             if (conductingEquipment.mRID != elem_uuid):
                 continue
-            elif conductingEquipment.__class__.__name__ in list_elements:
-                sequence_number = terminal.sequenceNumber
-                #TODO: has always the list Terminal.TopologicalNode only one element?????
-                topological_node = terminal.TopologicalNode[0]
-                if sequence_number == 1:
-                    start_node_uuid = topological_node.mRID
-                elif sequence_number == 2:
-                    end_node_uuid = topological_node.name
+            sequence_number = terminal.sequenceNumber
+            #TODO: has always the list Terminal.TopologicalNode only one element?
+            if (len(terminal.TopologicalNode)!=1):
+                print('WARNING: len(terminal.TopologicalNode)>1 for the element with uuid={}'.format(elem_uuid))
+            topological_node = terminal.TopologicalNode[0]
+            if sequence_number == 1:
+                start_node_uuid = topological_node.mRID
+            elif sequence_number == 2:
+                end_node_uuid = topological_node.mRID
         
-        return (start_node_uuid, end_node_uuid)
+        start_node = None
+        end_node = None
+        if (start_node_uuid==None):
+            print('WARNING: It could not find a start node for the element with uuid={}'.format(elem_uuid))
+        else:
+            start_node = self.get_node_by_uuid(start_node_uuid)
+        if (end_node_uuid==None):
+            print('WARNING: It could not find a end node for the element with uuid={}'.format(elem_uuid))
+        else:
+            end_node = self.get_node_by_uuid(end_node_uuid)
+
+        return [start_node, end_node]
 
     def _get_primary_connection(self, list_PowerTransformerEnds, elem_uuid):
         """
@@ -180,7 +303,7 @@ class System():
         :param list_PowerTransformerEnd: list of all elements of type PowerTransformerEnd
         :param elem_uuid: uuid of the power transformer for which the primary connection is searched
         :return: primary_connection
-	    """
+        """
         primary_connection = None
         power_transformer_ends = []
 
@@ -191,7 +314,7 @@ class System():
 
         if power_transformer_ends[0].BaseVoltage[0].nominalVoltage>=power_transformer_ends[1].BaseVoltage[0].nominalVoltage:
             primary_connection=power_transformer_ends[0]
-        elif power_transformer_ends[1].BaseVoltage[0].nominalVoltage>=power_transformer_ends[0].BaseVoltage[0].nominalVoltage:		
+        elif power_transformer_ends[1].BaseVoltage[0].nominalVoltage>=power_transformer_ends[0].BaseVoltage[0].nominalVoltage:        
             primary_connection=power_transformer_ends[1]
 
         return primary_connection
@@ -216,7 +339,7 @@ class System():
         list_Terminals_SM = [elem for elem in list_Terminals if elem.ConductingEquipment[0].__class__.__name__ == "SynchronousMachine"]
         for terminal in list_Terminals_SM:
             #TODO: is it correct to use the element 0 for it? Is len(terminal.TopologicalNode) greater than one?
-            node_uuid = terminal.TopologicalNode[0].MRID
+            node_uuid = terminal.TopologicalNode[0].uuid
             for node in self.nodes:
                 if node.uuid == node_uuid:
                     node.type = BusType["PV"]
