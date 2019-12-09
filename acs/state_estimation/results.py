@@ -32,7 +32,8 @@ class Results():
         self.Ymatrix = system.Ymatrix
         self.Adjacencies = system.Adjacencies
         for node in system.nodes:
-            self.nodes.append(ResultsNode(topo_node=node))
+            if node.ideal_connected_with == '':
+                self.nodes.append(ResultsNode(topo_node=node))
         for branch in system.branches:
             self.branches.append(ResultsBranch(topo_branch=branch))
 
@@ -63,7 +64,8 @@ class Results():
                 if node.topology_node.index == index:
                     node.voltage_pu = V[index]
                     node.voltage = node.voltage_pu * node.topology_node.baseVoltage
-
+                    continue
+    
     def calculate_all(self):
         """
         calculate all quantities of the grid
@@ -209,7 +211,7 @@ class Results():
                 I[branch_idx] = self.branches[branch_idx].current_pu
         elif pu == False:
             for branch_idx in range(len(self.branches)):
-                I[branch_idx] = self.es[branch_idx].current
+                I[branch_idx] = self.branches[branch_idx].current
 
         return I
 

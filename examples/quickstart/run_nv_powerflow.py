@@ -4,7 +4,6 @@ from acs.state_estimation import nv_powerflow
 from acs.state_estimation import results
 import cimpy
 import os
-import csv
 from villas.dataprocessing.readtools import read_timeseries_dpsim
 
 
@@ -34,9 +33,10 @@ results_pf, num_iter = nv_powerflow.solve(system)
 
 # print node voltages
 print("Powerflow converged in " + str(num_iter) + " iterations.\n")
-#print("Results: \n")
-#for node in results_pf.nodes:
-#    print('{}={}'.format(node.topology_node.uuid, node.voltage))
+print("Results: \n")
+for node in results_pf.nodes:
+    #print('{}={}'.format(node.topology_node.uuid, node.voltage_pu))
+    print('{}={}'.format(node.topology_node.uuid, node.voltage))
 print("\n\n\n")
 
 #load results of csv file:
