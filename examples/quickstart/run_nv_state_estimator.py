@@ -11,7 +11,7 @@ from acs.state_estimation import results
 import cimpy
 import os
 
-#os.chdir(os.path.dirname(__file__))
+os.chdir(os.path.dirname(__file__))
 
 logging.basicConfig(filename='CIGRE.log', level=logging.INFO, filemode='w')
 
