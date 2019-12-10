@@ -13,7 +13,7 @@ class BusType(Enum):
 
 class Node():
     def __init__(self, uuid='', name='', base_voltage=1.0, base_apparent_power=1.0, v_mag=0.0,
-                 v_phase=0.0, p=0.0, q=0.0, index=0, bus_type='PQ', pu=False, ideal_connected_with=''):
+                 v_phase=0.0, p=0.0, q=0.0, index=0, ideal_connected_with=''):
         self.uuid = uuid
         self.name = name
         self.index = index
@@ -81,13 +81,12 @@ class Breaker():
         return str
 
     def open_breaker(self):
-        self.is_open == False
-        self.to_node.ideal_connected_with = ''     
+        self.is_open == True
+        self.to_node.ideal_connected_with = ''
 
     def close_breaker(self):
         self.is_open == False
         self.to_node.ideal_connected_with = self.from_node.uuid
-        
 
 class System():
     def __init__(self):
@@ -122,7 +121,7 @@ class System():
         """
         nodes_num=0
         for node in self.nodes:
-            if node.ideal_connected_with == '':
+            if node.ideal_connected_with=='':
                 nodes_num+=1
 
         return nodes_num
@@ -131,18 +130,18 @@ class System():
         index = 0
         remaining_nodes_list = []
         for node in self.nodes:
-            if node.ideal_connected_with == '':
+            if node.ideal_connected_with=='':
                 node.index=index
                 index+=1
             else:
                 remaining_nodes_list.append(node)
 
         for node in remaining_nodes_list:
-            node.index = self.get_node_by_uuid(node.ideal_connected_with)
+            node.index = self.get_node_by_uuid(node.ideal_connected_with).index
 
     def load_cim_data(self, res, base_apparent_power):
         """
-        fill the vectors node and branch
+        fill the vectors node, branch and breakers
         """
         index = 0
         list_TPNode = [elem for elem in res.values() if elem.__class__.__name__ == "TopologicalNode"]
@@ -212,11 +211,13 @@ class System():
         for obj_Breaker in list_Breakers:
             is_open = obj_Breaker.normalOpen
             nodes = self._get_nodes(list_Terminals, obj_Breaker.mRID)
-            self.breakers.append(Breaker(from_node=nodes[0], to_node=nodes[0], is_open=is_open))
+            self.breakers.append(Breaker(from_node=nodes[0], to_node=nodes[1], is_open=is_open))
 
             #if the breaker is open == closed --> close broker
             if is_open == False:
                 self.breakers[-1].close_breaker(self)
+            else:
+                self.breakers[-1].ideal_connected_with = ''
             
         #calculate admitance matrix
         self.Ymatrix_calc()
