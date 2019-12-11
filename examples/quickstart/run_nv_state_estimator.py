@@ -15,7 +15,7 @@ import os
 
 logging.basicConfig(filename='CIGRE.log', level=logging.INFO, filemode='w')
 
-xml_path = r".\sample_data"
+xml_path = r".\sample_data\CIGRE-MV-NoTap"
 xml_files = [xml_path + r"\Rootnet_FULL_NE_06J16h_DI.xml",
                  xml_path + r"\Rootnet_FULL_NE_06J16h_EQ.xml",
                  xml_path + r"\Rootnet_FULL_NE_06J16h_SV.xml",
@@ -61,4 +61,3 @@ state_estimation_results = nv_state_estimator.DsseCall(system, measurements_set)
 print("state_estimation_results.voltages: ")
 for node in state_estimation_results.nodes:
     print('{}={}'.format(node.topology_node.uuid, node.voltage))
-print("\n\n\n")

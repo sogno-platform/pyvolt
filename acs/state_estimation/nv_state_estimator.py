@@ -15,7 +15,8 @@ def DsseCall(system, measurements):
     """
 
     # select type of Estimator.
-    # if at least a PMU is present we launch the combined estimator, otherwise a simple traditional etimator
+    # if at least a PMU is present we launch the combined estimator, 
+    # otherwise a simple traditional etimator
     Vmag_meas = 0
     Vpmu_meas = 0
     for elem in measurements.measurements:
@@ -29,7 +30,7 @@ def DsseCall(system, measurements):
     est_code = trad_code + PMU_code
 
     # number of nodes of the grid
-    nodes_num = len(system.nodes)
+    nodes_num = system.get_nodes_num()
 
     Gmatrix = system.Ymatrix.real
     Bmatrix = system.Ymatrix.imag
@@ -39,7 +40,7 @@ def DsseCall(system, measurements):
 
     # run Estimator.
     if est_code == 1:
-        Vest = DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matrix)
+        Vest = DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matrix, Adj)
     elif est_code == 2:
         Vest = DssePmu(nodes_num, measurements, Gmatrix, Bmatrix, Adj)
     else:
@@ -53,7 +54,7 @@ def DsseCall(system, measurements):
     return results
 
 
-def DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matrix):
+def DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matrix, Adj):
     """
     Traditional state estimator
     It performs state estimation using rectangular node voltage state variables
@@ -61,14 +62,15 @@ def DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matr
 
     @param nodes_num: number of nodes of the grid
     @param measurements: Vector of measurements in Input (voltages, currents, powers)
-    @param Gmatrix
-    @param Bmatrix
-    @param Yabs_matrix
-    @param Yphase_matrix
+    @param Gmatrix: conductance matrix 
+    @param Bmatrix: susceptance matrix
+    @param Yabs_matrix: magnitude of the admittance matrix
+    @param Yphase_matrix: phase of the admittance matrix
+    @param Adj: 
     return: np.array V - estimated voltages
     """
 
-    # calculate weights matrix (obtained as stdandard_deviations^-2)
+    # calculate  weightsmatrix (obtained as stdandard_deviations^-2)
     weights = measurements.getWeightsMatrix()
     W = np.diag(weights)
 

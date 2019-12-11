@@ -13,6 +13,13 @@ class ResultsNode():
         self.current_pu = complex(0, 0)
         self.power_pu = complex(0, 0)
 
+    def __str__(self):
+        str = 'class=Node\n'
+        attributes = self.__dict__
+        for key in attributes.keys():
+            str = str + key + '={}\n'.format(attributes[key])
+        return str
+
 
 class ResultsBranch():
     def __init__(self, topo_branch):
@@ -23,6 +30,13 @@ class ResultsBranch():
         self.current_pu = complex(0, 0)
         self.power_pu = complex(0, 0)  # complex power flow at branch, measured at initial node
         self.power2_pu = complex(0, 0)  # complex power flow at branch, measured at final node
+
+    def __str__(self):
+        str = 'class=Branch\n'
+        attributes = self.__dict__
+        for key in attributes.keys():
+            str = str + key + '={}\n'.format(attributes[key])
+        return str
 
 
 class Results():
@@ -37,6 +51,16 @@ class Results():
         for branch in system.branches:
             self.branches.append(ResultsBranch(topo_branch=branch))
 
+    def get_node_by_index(self, index):
+        """
+        return the node with node.index==index
+        """
+        for node in self.nodes:
+            if (node.topology_node.index==index):
+                return node
+        
+        return None
+    
     def read_data_dpsim(self, file_name, pu=False):
         """
         read the voltages from a dpsim input file
@@ -60,11 +84,9 @@ class Results():
         load the voltages of V-array (result of powerflow_cim.solve)
         """
         for index in range(len(V)):
-            for node in self.nodes:
-                if node.topology_node.index == index:
-                    node.voltage_pu = V[index]
-                    node.voltage = node.voltage_pu * node.topology_node.baseVoltage
-                    continue
+            node = self.get_node_by_index(index)
+            node.voltage_pu = V[index]
+            node.voltage = node.voltage_pu * node.topology_node.baseVoltage
     
     def calculate_all(self):
         """

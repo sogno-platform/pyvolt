@@ -12,7 +12,7 @@ from villas.dataprocessing.readtools import read_timeseries_dpsim
 
 logging.basicConfig(filename='CIGRE.log', level=logging.INFO, filemode='w')
 
-xml_path = r".\sample_data"
+xml_path = r".\sample_data\CIGRE-MV-NoTap"
 xml_files = [xml_path + r"\Rootnet_FULL_NE_06J16h_DI.xml",
                  xml_path + r"\Rootnet_FULL_NE_06J16h_EQ.xml",
                  xml_path + r"\Rootnet_FULL_NE_06J16h_SV.xml",
@@ -37,12 +37,4 @@ print("Results: \n")
 for node in results_pf.nodes:
     print('{}={}'.format(node.topology_node.uuid, node.voltage_pu))
     #print('{}={}'.format(node.topology_node.uuid, node.voltage))
-print("\n\n\n")
 
-#load results of csv file:
-csv_file = xml_path + r".\CIGRE-MV-NoTap.csv"
-results_CIGRE = results.Results(system)
-results_CIGRE.read_data_dpsim(csv_file)
-
-# Show numerical comparison
-print(results_CIGRE.get_voltages(pu=False)/1000-results_pf.get_voltages(pu=False))

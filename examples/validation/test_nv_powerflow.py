@@ -7,7 +7,7 @@ import cimpy
 
 logging.basicConfig(filename='CIGRE.log', level=logging.INFO, filemode='w')
 
-xml_path = r"..\quickstart\sample_data"
+xml_path = r"..\quickstart\sample_data\CIGRE-MV-NoTap"
 xml_files = [xml_path + r"\Rootnet_FULL_NE_06J16h_DI.xml",
                  xml_path + r"\Rootnet_FULL_NE_06J16h_EQ.xml",
                  xml_path + r"\Rootnet_FULL_NE_06J16h_SV.xml",
@@ -30,10 +30,10 @@ results_pf, num_iter_cim = nv_powerflow.solve(system)
 print("results_pf.voltages: ")
 for node in results_pf.nodes:
     print('{}={}'.format(node.topology_node.uuid, node.voltage))
-print("\n\n\n")
+print("\n")
 
 # Show numerical comparison 
-loadflow_results_path = r"..\quickstart\sample_data"
+loadflow_results_path = r"..\quickstart\sample_data\CIGRE-MV-NoTap"
 
 loadflow_results_file = loadflow_results_path + r"\CIGRE-MV-NoTap.csv"
 results_dpsim = results.Results(system)

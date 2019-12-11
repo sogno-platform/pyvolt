@@ -115,9 +115,22 @@ class System():
         
         return False
 
+    def get_node_by_index(self, index):
+        """
+        return the node with node.index==index and 
+        and is not ideally connected to any other node
+        """
+        for node in self.nodes:
+            if (node.index==index) and (node.ideal_connected_with=='') :
+                return node
+        
+        return None
+
     def get_nodes_num(self):
         """
         return the number of nodes in the list system.nodes
+        Warning: if any node is ideally connected to another node, it is 
+        not tanking into account
         """
         nodes_num=0
         for node in self.nodes:
@@ -171,8 +184,8 @@ class System():
             for obj_SvPowerFlow in list_SvPowerFlow:
                 if obj_SvPowerFlow.Terminal[0].TopologicalNode[0].mRID == uuid_TPNode:
                     pInj += obj_SvPowerFlow.p
-                    qInj += obj_SvPowerFlow.q     
-        
+                    qInj += obj_SvPowerFlow.q           
+            
             base_voltage = TPNode.BaseVoltage[0].nominalVoltage
             self.nodes.append(Node(name=name, uuid=uuid_TPNode, base_voltage=base_voltage, v_mag=vmag,
                                    base_apparent_power=base_apparent_power, v_phase=vphase,
