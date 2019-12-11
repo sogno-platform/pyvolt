@@ -32,27 +32,30 @@ system.Ymatrix_calc()
 # Execute power flow analysis
 results_pf, num_iter = nv_powerflow.solve(system)
 
-# print node voltages
-print("Powerflow converged in " + str(num_iter) + " iterations.\n")
-print("Results:")
+# --- State Estimation ---
+""" Write here the percent uncertainties of the measurements"""
+V_unc = 0
+I_unc = 0
+Sinj_unc = 0
+S_unc = 0
+Pmu_mag_unc = 1
+Pmu_phase_unc = 0
+
+# Create measurements data structures
+"""use all node voltages as measures"""
+measurements_set = measurement.MeasurementSet()
 for node in results_pf.nodes:
-    print('{}={}'.format(node.topology_node.name, np.absolute(node.voltage)))
-    #print('{}={}'.format(node.topology_node.name, np.absolute(node.voltage_pu)))
-print("\n")
+    measurements_set.create_measurement(node.topology_node, measurement.ElemType.Node, measurement.MeasType.Vpmu_mag,
+                                        np.absolute(node.voltage_pu), Pmu_mag_unc)
+for node in results_pf.nodes:
+    measurements_set.create_measurement(node.topology_node, measurement.ElemType.Node, measurement.MeasType.Vpmu_phase,
+                                        np.angle(node.voltage_pu), Pmu_phase_unc)
+measurements_set.meas_creation()
 
-print("-------------------------------------------------------------")
-print("\n")
-
-#close breaker
-system.breakers[-1].close_breaker()
-system.Ymatrix_calc()
-
-# Execute power flow analysis
-results_pf, num_iter = nv_powerflow.solve(system)
+# Perform state estimation
+state_estimation_results = nv_state_estimator.DsseCall(system, measurements_set)
 
 # print node voltages
-print("Powerflow converged in " + str(num_iter) + " iterations.\n")
-print("Results:")
-for node in results_pf.nodes:
-    print('{}={}'.format(node.topology_node.name, np.absolute(node.voltage)))
-    #print('{}={}'.format(node.topology_node.name, np.absolute(node.voltage_pu)))
+print("state_estimation_results.voltages: ")
+for node in state_estimation_results.nodes:
+    print('{}={}'.format(node.topology_node.name, node.voltage))
