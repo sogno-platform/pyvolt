@@ -21,7 +21,7 @@ class Node():
         self.base_apparent_power = base_apparent_power
         self.base_current = self.base_apparent_power / self.baseVoltage / np.sqrt(3)
         self.type = BusType["PQ"]
-        self.voltage = v_mag * np.cos(np.radians(v_phase)) + 1j * v_mag * np.sin(np.radians(v_phase))
+        self.voltage = complex(v_mag * np.cos(np.radians(v_phase)), v_mag * np.sin(np.radians(v_phase)))
         self.power = complex(p, q)
         self.power_pu = complex(p, q) / self.base_apparent_power
         self.voltage_pu = self.voltage / self.baseVoltage
@@ -33,7 +33,7 @@ class Node():
         for key in attributes.keys():
             str = str + key + '={}\n'.format(attributes[key])
         return str
-
+        
 
 class Branch():
     def __init__(self, uuid='', r=0.0, x=0.0, start_node=None, end_node=None,
@@ -88,6 +88,7 @@ class Breaker():
         self.is_open == False
         self.to_node.ideal_connected_with = self.from_node.uuid
 
+
 class System():
     def __init__(self):
         self.nodes = []
@@ -95,18 +96,6 @@ class System():
         self.breakers = []
         self.Ymatrix = np.zeros([], dtype=np.complex)
         self.Adjacencies = np.array([])
-
-    def print_nodes_names(self):
-        for node in self.nodes:
-            print('{} {}'.format(node.name, node.index))
-
-    def print_node_types(self):
-        for node in self.nodes:
-            print('{} {}'.format(node.name, node.type))
-    
-    def print_power(self):
-        for node in self.nodes:
-            print('{} {}'.format(node.name, node.power))
 
     def get_node_by_uuid(self, node_uuid):
         for node in self.nodes:
@@ -117,20 +106,19 @@ class System():
 
     def get_node_by_index(self, index):
         """
-        return the node with node.index==index and 
-        and is not ideally connected to any other node
+        return the node with node.index==index 
         """
         for node in self.nodes:
             if (node.index==index) and (node.ideal_connected_with=='') :
                 return node
         
         return None
-
+           
     def get_nodes_num(self):
         """
         return the number of nodes in the list system.nodes
-        Warning: if any node is ideally connected to another node, it is 
-        not tanking into account
+        Warning: if any node is ideally connected to another node, 
+        the counter is increased only one time
         """
         nodes_num=0
         for node in self.nodes:
@@ -140,6 +128,11 @@ class System():
         return nodes_num
 
     def reindex_nodes_list(self):
+        """
+        Reenumerate the nodes in system.nodes
+        If any node is ideally connected to another node, 
+        both receive the same index
+        """
         index = 0
         remaining_nodes_list = []
         for node in self.nodes:
@@ -151,7 +144,7 @@ class System():
 
         for node in remaining_nodes_list:
             node.index = self.get_node_by_uuid(node.ideal_connected_with).index
-
+             
     def load_cim_data(self, res, base_apparent_power):
         """
         fill the vectors node, branch and breakers
@@ -160,12 +153,16 @@ class System():
         list_TPNode = [elem for elem in res.values() if elem.__class__.__name__ == "TopologicalNode"]
         list_SvVoltage = [elem for elem in res.values() if elem.__class__.__name__ == "SvVoltage"]
         list_SvPowerFlow = [elem for elem in res.values() if elem.__class__.__name__ == "SvPowerFlow"]
+        list_EnergySources = [elem for elem in res.values() if elem.__class__.__name__ == "EnergySource"]
+        list_EnergyConsumer = [elem for elem in res.values() if elem.__class__.__name__ == "EnergyConsumer"]
         list_ACLineSegment = [elem for elem in res.values() if elem.__class__.__name__ == "ACLineSegment"]
         list_PowerTransformer = [elem for elem in res.values() if elem.__class__.__name__ == "PowerTransformer"]
         list_Terminals = [elem for elem in res.values() if elem.__class__.__name__ == "Terminal"]
+        list_Terminals_ES = [elem for elem in list_Terminals if elem.ConductingEquipment.__class__.__name__ == "EnergySource"]
+        list_Terminals_EC = [elem for elem in list_Terminals if elem.ConductingEquipment.__class__.__name__ == "EnergyConsumer"]
         list_PowerTransformerEnds = [elem for elem in res.values() if elem.__class__.__name__ == "PowerTransformerEnd"]
         list_Breakers = [elem for elem in res.values() if elem.__class__.__name__ == "Breaker"]
-
+           
         #create nodes
         for TPNode in list_TPNode:
             uuid_TPNode = TPNode.mRID
@@ -176,17 +173,28 @@ class System():
             qInj = 0.0
                 
             for obj_SvVoltage in list_SvVoltage:
-                if obj_SvVoltage.TopologicalNode[0].mRID == uuid_TPNode:
+                if obj_SvVoltage.TopologicalNode.mRID == uuid_TPNode:
                     vmag = obj_SvVoltage.v
                     vphase = obj_SvVoltage.angle
                     break
-
             for obj_SvPowerFlow in list_SvPowerFlow:
-                if obj_SvPowerFlow.Terminal[0].TopologicalNode[0].mRID == uuid_TPNode:
+                if obj_SvPowerFlow.Terminal.TopologicalNode.mRID == uuid_TPNode:
                     pInj += obj_SvPowerFlow.p
                     qInj += obj_SvPowerFlow.q           
+            for obj_Terminal in list_Terminals_ES:
+                if obj_Terminal.TopologicalNode.mRID == uuid_TPNode:
+                    for obj_EnergySource in list_EnergySources:
+                        if obj_EnergySource.mRID == obj_Terminal.ConductingEquipment.mRID:
+                            pInj += obj_EnergySource.activePower
+                            qInj += obj_EnergySource.reactivePower
+            for obj_Terminal in list_Terminals_EC:
+                if obj_Terminal.TopologicalNode.mRID == uuid_TPNode:
+                    for obj_EnergyConsumer in list_EnergyConsumer:
+                        if obj_EnergyConsumer.mRID == obj_Terminal.ConductingEquipment.mRID:
+                            pInj += obj_EnergyConsumer.p
+                            qInj += obj_EnergyConsumer.q
             
-            base_voltage = TPNode.BaseVoltage[0].nominalVoltage
+            base_voltage = TPNode.BaseVoltage.nominalVoltage
             self.nodes.append(Node(name=name, uuid=uuid_TPNode, base_voltage=base_voltage, v_mag=vmag,
                                    base_apparent_power=base_apparent_power, v_phase=vphase,
                                    p=pInj, q=qInj, index=index))
@@ -201,7 +209,7 @@ class System():
             start_node = nodes[0]
             end_node = nodes[1]
 
-            base_voltage = ACLineSegment.BaseVoltage[0].nominalVoltage
+            base_voltage = ACLineSegment.BaseVoltage.nominalVoltage
             self.branches.append(Branch(uuid=uuid_ACLineSegment, r=ACLineSegment.r, x=ACLineSegment.x, 
                                         start_node=start_node, end_node=end_node, 
                                         base_voltage=base_voltage, base_apparent_power=base_apparent_power))
@@ -215,7 +223,7 @@ class System():
             
             # base voltage = high voltage side (=primaryConnection)
             primary_connection = self._get_primary_connection(list_PowerTransformerEnds, uuid_power_transformer)
-            base_voltage = primary_connection.BaseVoltage[0].nominalVoltage
+            base_voltage = primary_connection.BaseVoltage.nominalVoltage
             self.branches.append(Branch(uuid=uuid_power_transformer, r=primary_connection.r, x=primary_connection.x,
                                         start_node=start_node, end_node=end_node, base_voltage=base_voltage,
                                         base_apparent_power=base_apparent_power))
@@ -248,22 +256,13 @@ class System():
         end_node_uuid = None
         
         for terminal in list_Terminals:
-            #TODO: has always the list ConductingEquipment only one element?
-            if (len(terminal.ConductingEquipment)!=1):
-                print('WARNING: len(terminal.ConductingEquipment)>1 for the element with uuid={} '.format(elem_uuid))
-            conductingEquipment = terminal.ConductingEquipment[0]
-
-            if (conductingEquipment.mRID != elem_uuid):
+            if (terminal.ConductingEquipment.mRID != elem_uuid):
                 continue
-            sequence_number = terminal.sequenceNumber
-            #TODO: has always the list Terminal.TopologicalNode only one element?
-            if (len(terminal.TopologicalNode)!=1):
-                print('WARNING: len(terminal.TopologicalNode)>1 for the element with uuid={}'.format(elem_uuid))
-            topological_node = terminal.TopologicalNode[0]
+            sequence_number = terminal.sequenceNumber            
             if sequence_number == 1:
-                start_node_uuid = topological_node.mRID
+                start_node_uuid = terminal.TopologicalNode.mRID
             elif sequence_number == 2:
-                end_node_uuid = topological_node.mRID
+                end_node_uuid = terminal.TopologicalNode.mRID
         
         start_node = None
         end_node = None
@@ -290,37 +289,44 @@ class System():
 
         #search for two elements of class powertransformerend that point to the powertransformer with ID = elem_uuid
         for power_transformer_end in list_PowerTransformerEnds:
-            if power_transformer_end.PowerTransformer[0].mRID == elem_uuid:
+            power_transformer = None
+            if isinstance(power_transformer_end.PowerTransformer, list):
+                if (len(power_transformer_end.PowerTransformer)!=1):
+                    print('WARNING: len(power_transformer_end.PowerTransformer)!=1 for the element with uuid={}. \
+                        The first element will be used'.format(power_transformer_end.mRID))
+                power_transformer = power_transformer_end.PowerTransformer[0]
+            else:
+                power_transformer = power_transformer_end.PowerTransformer
+        
+            if power_transformer.mRID == elem_uuid:
                 power_transformer_ends.append(power_transformer_end)
 
-        if power_transformer_ends[0].BaseVoltage[0].nominalVoltage>=power_transformer_ends[1].BaseVoltage[0].nominalVoltage:
+        if power_transformer_ends[0].BaseVoltage.nominalVoltage>=power_transformer_ends[1].BaseVoltage.nominalVoltage:
             primary_connection=power_transformer_ends[0]
-        elif power_transformer_ends[1].BaseVoltage[0].nominalVoltage>=power_transformer_ends[0].BaseVoltage[0].nominalVoltage:        
+        elif power_transformer_ends[1].BaseVoltage.nominalVoltage>=power_transformer_ends[0].BaseVoltage.nominalVoltage:
             primary_connection=power_transformer_ends[1]
 
         return primary_connection
 
     def _setNodeType(self, list_Terminals):
         """
-        set the parameter type of all elements of the list self.nodes
+        set the parameter "type" of all elements of the list self.nodes
         :param list_PowerTransformerEnd: list of all elements of type Terminal
         :return None
         """
         #get a list of Terminals for which the ConductingEquipment is a element of class ExternalNetworkInjection
-        list_Terminals_ENI = [elem for elem in list_Terminals if elem.ConductingEquipment[0].__class__.__name__ == "ExternalNetworkInjection"]
+        list_Terminals_ENI = [elem for elem in list_Terminals if elem.ConductingEquipment.__class__.__name__ == "ExternalNetworkInjection"]
         for terminal in list_Terminals_ENI:
-            #TODO: is it correct to use the element 0 for it? Is len(terminal.TopologicalNode) greater than one?
-            node_uuid = terminal.TopologicalNode[0].mRID
+            node_uuid = terminal.TopologicalNode.mRID
             for node in self.nodes:
                 if node.uuid == node_uuid:
                     node.type = BusType["SLACK"]
             
         #TODO the search for PV nodes has not been tested yet
         #get a list of Terminals for which the ConductingEquipment is a element of class SynchronousMachine
-        list_Terminals_SM = [elem for elem in list_Terminals if elem.ConductingEquipment[0].__class__.__name__ == "SynchronousMachine"]
+        list_Terminals_SM = [elem for elem in list_Terminals if elem.ConductingEquipment.__class__.__name__ == "SynchronousMachine"]
         for terminal in list_Terminals_SM:
-            #TODO: is it correct to use the element 0 for it? Is len(terminal.TopologicalNode) greater than one?
-            node_uuid = terminal.TopologicalNode[0].uuid
+            node_uuid = terminal.TopologicalNode.mRID
             for node in self.nodes:
                 if node.uuid == node_uuid:
                     node.type = BusType["PV"]
@@ -339,3 +345,17 @@ class System():
             self.Ymatrix[to][to] += branch.y_pu
             self.Adjacencies[fr].append(to + 1)  # to + 1???
             self.Adjacencies[to].append(fr + 1)  # fr + 1???
+    
+    #Testing functions
+    def print_nodes_names(self):
+        for node in self.nodes:
+            print('{} {}'.format(node.name, node.index))
+
+    def print_node_types(self):
+        for node in self.nodes:
+            print('{} {}'.format(node.name, node.type))
+    
+    def print_power(self):
+        for node in self.nodes:
+            print('{} {}'.format(node.name, node.power))
+            
