@@ -11,9 +11,7 @@ from acs.state_estimation import results
 
 logging.basicConfig(filename='CIGRE.log', level=logging.INFO, filemode='w')
 
-os.chdir(os.path.dirname(__file__))
-
-xml_path = r"..\quickstart\sample_data"
+xml_path = r"..\quickstart\sample_data\CIGRE-MV-NoTap"
 xml_files = [xml_path + r"\Rootnet_FULL_NE_06J16h_DI.xml",
                  xml_path + r"\Rootnet_FULL_NE_06J16h_EQ.xml",
                  xml_path + r"\Rootnet_FULL_NE_06J16h_SV.xml",
@@ -30,7 +28,7 @@ base_apparent_power = 25  # MW
 system.load_cim_data(res, base_apparent_power)
 
 # read Input-Ergebnisdatei and store it in a results.Results object
-loadflow_results_path = r"..\quickstart\sample_data"
+loadflow_results_path = r"..\quickstart\sample_data\CIGRE-MV-NoTap"
 loadflow_results_file = loadflow_results_path + r"\CIGRE-MV-NoTap.csv"
 powerflow_results = results.Results(system)
 powerflow_results.read_data_dpsim(loadflow_results_file)

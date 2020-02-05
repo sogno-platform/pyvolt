@@ -1,6 +1,3 @@
-# This example will provide a test case running the state estimator.
-# The state estimation is performed based on the results using the nv_powerflow implementation
-
 import logging
 import numpy as np
 from acs.state_estimation import network
@@ -11,15 +8,12 @@ from acs.state_estimation import results
 import cimpy
 import os
 
-os.chdir(os.path.dirname(__file__))
-
 logging.basicConfig(filename='CIGRE.log', level=logging.INFO, filemode='w')
 
-xml_path = r".\sample_data\CIGRE-MV-NoTap"
-xml_files = [xml_path + r"\Rootnet_FULL_NE_06J16h_DI.xml",
-                 xml_path + r"\Rootnet_FULL_NE_06J16h_EQ.xml",
-                 xml_path + r"\Rootnet_FULL_NE_06J16h_SV.xml",
-                 xml_path + r"\Rootnet_FULL_NE_06J16h_TP.xml"]
+xml_path = r".\sample_data\CIGRE-MV-NoTap-WithBreaker"
+xml_files = [xml_path + r"\20191126T1535Z_YYY_EQ_.xml",
+             xml_path + r"\20191126T1535Z_XX_YYY_SV_.xml",
+             xml_path + r"\20191126T1535Z_XX_YYY_TP_.xml"]
 
 xml_files_abs = []
 for file in xml_files:
@@ -31,8 +25,12 @@ system = network.System()
 base_apparent_power = 25  # MW
 system.load_cim_data(res, base_apparent_power)
 
+#open breaker
+system.breakers[-1].open_breaker()
+system.Ymatrix_calc()
+
 # Execute power flow analysis
-results_pf, num_iter_cim = nv_powerflow.solve(system)
+results_pf, num_iter = nv_powerflow.solve(system)
 
 # --- State Estimation ---
 """ Write here the percent uncertainties of the measurements"""
@@ -60,4 +58,4 @@ state_estimation_results = nv_state_estimator.DsseCall(system, measurements_set)
 # print node voltages
 print("state_estimation_results.voltages: ")
 for node in state_estimation_results.nodes:
-    print('{}={}'.format(node.topology_node.uuid, node.voltage))
+    print('{}={}'.format(node.topology_node.name, node.voltage))
