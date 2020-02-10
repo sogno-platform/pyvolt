@@ -122,7 +122,7 @@ class Results():
                     fr = fr + branch.current_pu
                 if node.topology_node.index == branch.topology_branch.end_node.index:
                     to = to + branch.current_pu
-            node.current_pu = to - fr
+            node.current_pu = fr - to
             node.current = node.current_pu * node.topology_node.base_current
 
     def calculateSinj(self):
