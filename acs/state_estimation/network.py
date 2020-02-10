@@ -335,16 +335,19 @@ class System():
         self.reindex_nodes_list()
         nodes_num = self.get_nodes_num()
         self.Ymatrix = np.zeros((nodes_num, nodes_num), dtype=np.complex)
+        self.Bmatrix = np.zeros((nodes_num, nodes_num), dtype=np.complex)
         self.Adjacencies = [[] for _ in range(nodes_num)]
         for branch in self.branches:
             fr = branch.start_node.index
             to = branch.end_node.index
             self.Ymatrix[fr][to] -= branch.y_pu
             self.Ymatrix[to][fr] -= branch.y_pu
-            self.Ymatrix[fr][fr] += branch.y_pu
-            self.Ymatrix[to][to] += branch.y_pu
-            self.Adjacencies[fr].append(to + 1)  # to + 1???
-            self.Adjacencies[to].append(fr + 1)  # fr + 1???
+            self.Ymatrix[fr][fr] += branch.y_pu  # + branch.b_pu
+            self.Ymatrix[to][to] += branch.y_pu  # + branch.b_pu
+            # self.Bmatrix[fr][to] += branch.b_pu
+            # self.Bmatrix[to][fr] += branch.b_pu
+            self.Adjacencies[fr].append(to + 1)  # to + 1??? To be checked 
+            self.Adjacencies[to].append(fr + 1)  # fr + 1??? To be checked
     
     #Testing functions
     def print_nodes_names(self):
