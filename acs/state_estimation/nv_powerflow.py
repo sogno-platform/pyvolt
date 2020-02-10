@@ -86,7 +86,7 @@ def solve(system):
                     h[m + 1] = np.inner(H[m + 1], state)
                 elif node_type is BusType.PV:
                     z[m] = (np.real(node.power_pu) * np.real(V[i]) + 
-                            np.imag(node.power_pu) * np.imag(V[i]))(np.abs(V[i]) ** 2)
+                            np.imag(node.power_pu) * np.imag(V[i])) / (np.abs(V[i]) ** 2)
                     h[m] = np.inner(H[m], state)
                     h[m + 1] = np.abs(V[i])
                     H[m + 1][i] = np.cos(np.angle(V[i]))
