@@ -106,7 +106,7 @@ class Results():
         for branch in self.branches:
             fr = branch.topology_branch.start_node.index
             to = branch.topology_branch.end_node.index
-            branch.current_pu = - (self.nodes[fr].voltage_pu - self.nodes[to].voltage_pu) * self.Ymatrix[fr][to]
+            branch.current_pu = - (self.nodes[fr].voltage_pu - self.nodes[to].voltage_pu) * self.Ymatrix[fr][to] + 1j*self.Bmatrix[fr][to] * self.nodes[fr].voltage_pu
             branch.current = branch.current_pu * branch.topology_branch.base_current
 
     def calculateIinj(self):
