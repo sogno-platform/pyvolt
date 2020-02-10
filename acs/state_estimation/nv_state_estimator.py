@@ -381,13 +381,13 @@ def calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, Adj, ty
             m2 = m + nodes_num
         elif type == 2:
             m2 = m + nodes_num - 1
-        H2[index][m] = - Gmatrix[m][m]
-        H2[index][m2] = Bmatrix[m][m]
-        H3[index][m] = - Bmatrix[m][m]
-        H3[index][m2] = - Gmatrix[m][m]
+        H2[index][m] = Gmatrix[m][m]
+        H2[index][m2] = - Bmatrix[m][m]
+        H3[index][m] = Bmatrix[m][m]
+        H3[index][m2] = Gmatrix[m][m]
         idx = np.subtract(Adj[m], 1)
-        H2[index][idx] = - Gmatrix[m][idx]
-        H3[index][idx] = - Bmatrix[m][idx]
+        H2[index][idx] = Gmatrix[m][idx]
+        H3[index][idx] = Bmatrix[m][idx]
         if type == 1:
             idx2 = idx + nodes_num
         elif type == 2:
@@ -395,8 +395,8 @@ def calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, Adj, ty
                 pos = np.where(idx == 0)
                 idx = np.delete(idx, pos)
             idx2 = idx + nodes_num - 1
-        H2[index][idx2] = Bmatrix[m][idx]
-        H3[index][idx2] = - Gmatrix[m][idx]
+        H2[index][idx2] = - Bmatrix[m][idx]
+        H3[index][idx2] = Gmatrix[m][idx]
 
     return H2, H3
 
