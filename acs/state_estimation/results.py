@@ -44,6 +44,7 @@ class Results():
         self.nodes = []
         self.branches = []
         self.Ymatrix = system.Ymatrix
+        self.Bmatrix = system.Bmatrix
         self.Adjacencies = system.Adjacencies
         for node in system.nodes:
             if node.ideal_connected_with == '':
