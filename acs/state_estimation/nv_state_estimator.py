@@ -464,7 +464,7 @@ def DsseAllocation(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphas
     return V
 
 
-def calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, add_var, type):
+def calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, inj_code, type):
     """
     It calculates the Jacobian for Power Injection Measurements
     (converted to equivalent rectangualar current measurements)
@@ -474,7 +474,7 @@ def calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, add_var
     @param Gmatrix
     @param Bmatrix
     @param type: 1 for DssePmu and DsseMixed, 2 for DsseTrad
-    @param add_var: additional number of variables to be considered when running the DsseAllocation method
+    @param inj_code: additional number of variables to be considered when running the DsseAllocation method
     return: 1. H2: Jacobian for Pinj
             2. H3: Jacobian for Qinj
     """
@@ -483,11 +483,11 @@ def calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, add_var
     # get all measurements of type MeasType.Sinj_real
     qinj_meas = measurements.getMeasurements(type=MeasType.Sinj_imag)
     if type == 1:
-        H2 = np.zeros((len(pinj_meas), 2 * nodes_num + add_var))
-        H3 = np.zeros((len(qinj_meas), 2 * nodes_num + add_var))
+        H2 = np.zeros((len(pinj_meas), 2 * nodes_num + inj_code))
+        H3 = np.zeros((len(qinj_meas), 2 * nodes_num + inj_code))
     elif type == 2:
-        H2 = np.zeros((len(pinj_meas), 2 * nodes_num - 1 + add_var))
-        H3 = np.zeros((len(qinj_meas), 2 * nodes_num - 1 + add_var))
+        H2 = np.zeros((len(pinj_meas), 2 * nodes_num - 1 + inj_code))
+        H3 = np.zeros((len(qinj_meas), 2 * nodes_num - 1 + inj_code))
 
     for index, measurement in enumerate(pinj_meas):
         m = measurement.element.index
@@ -502,7 +502,7 @@ def calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, add_var
     return H2, H3
 
 
-def calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, add_var, type):
+def calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, inj_code, type):
     """
     It calculates the Jacobian for branch Power Measurements
     (converted to equivalent rectangualar current measurements)
@@ -512,7 +512,7 @@ def calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, add_va
     @param Gmatrix
     @param Bmatrix
     @param type: 1 for DssePmu and DsseMixed, 2 for DsseTrad
-    @param add_var: additional number of variables to be considered when running the DsseAllocation method
+    @param inj_code: additional number of variables to be considered when running the DsseAllocation method
     return:	1. H4: Jacobian for S_real
             2. H5: Jacobian for S_imag
     """
@@ -524,11 +524,11 @@ def calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, add_va
     q2_meas = measurements.getMeasurements(type=MeasType.S2_imag)
 
     if type == 1:
-        H4 = np.zeros((len(p1_meas) + len(p2_meas), 2 * nodes_num + add_var))
-        H5 = np.zeros((len(q1_meas) + len(q2_meas), 2 * nodes_num + add_var))
+        H4 = np.zeros((len(p1_meas) + len(p2_meas), 2 * nodes_num + inj_code))
+        H5 = np.zeros((len(q1_meas) + len(q2_meas), 2 * nodes_num + inj_code))
     elif type == 2:
-        H4 = np.zeros((len(p1_meas) + len(p2_meas), 2 * nodes_num - 1 + add_var))
-        H5 = np.zeros((len(q1_meas) + len(q2_meas), 2 * nodes_num - 1 + add_var))
+        H4 = np.zeros((len(p1_meas) + len(p2_meas), 2 * nodes_num - 1 + inj_code))
+        H5 = np.zeros((len(q1_meas) + len(q2_meas), 2 * nodes_num - 1 + inj_code))
 
     for i, measurement in enumerate(p1_meas):
         m = measurement.element.start_node.index
@@ -581,7 +581,7 @@ def calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, add_va
     return H4, H5
 
 
-def calculateJacobiVoltagePmu(measurements, nodes_num, Gmatrix, Bmatrix, add_var):
+def calculateJacobiVoltagePmu(measurements, nodes_num, Gmatrix, Bmatrix, inj_code):
     """
     It calculates the Jacobian for Voltage Pmu Measurements
     (converted to equivalent rectangualar current measurements)
@@ -590,7 +590,7 @@ def calculateJacobiVoltagePmu(measurements, nodes_num, Gmatrix, Bmatrix, add_var
     @param nodes_num: len of system.nodes
     @param Gmatrix
     @param Bmatrix
-    @param add_var: additional number of variables to be considered when running the DsseAllocation method
+    @param inj_code: additional number of variables to be considered when running the DsseAllocation method
     return: 1. H7: Jacobian for S_real
             2. H8: Jacobian for S_imag
     """
@@ -599,8 +599,8 @@ def calculateJacobiVoltagePmu(measurements, nodes_num, Gmatrix, Bmatrix, add_var
     Vpmu_mag_meas = measurements.getMeasurements(type=MeasType.Vpmu_mag)
     # get all measurements of type MeasType.Vpmu_phase
     Vpmu_phase_meas = measurements.getMeasurements(type=MeasType.Vpmu_phase)
-    H7 = np.zeros((len(Vpmu_mag_meas), 2 * nodes_num + add_var))
-    H8 = np.zeros((len(Vpmu_mag_meas), 2 * nodes_num + add_var))
+    H7 = np.zeros((len(Vpmu_mag_meas), 2 * nodes_num + inj_code))
+    H8 = np.zeros((len(Vpmu_mag_meas), 2 * nodes_num + inj_code))
 
     # TODO: index of Vmag = index of Vphase???
     for index, measurement in enumerate(Vpmu_mag_meas):
@@ -614,7 +614,7 @@ def calculateJacobiVoltagePmu(measurements, nodes_num, Gmatrix, Bmatrix, add_var
     return H7, H8
 
 
-def calculateJacobiCurrentPmu(measurements, nodes_num, Gmatrix, Bmatrix, add_var):
+def calculateJacobiCurrentPmu(measurements, nodes_num, Gmatrix, Bmatrix, inj_code):
     """
     It calculates the Jacobian for Current Pmu Measurements
     (converted to equivalent rectangualar current measurements)
@@ -623,7 +623,7 @@ def calculateJacobiCurrentPmu(measurements, nodes_num, Gmatrix, Bmatrix, add_var
     @param nodes_num: len of system.nodes
     @param Gmatrix
     @param Bmatrix
-    @param add_var: additional number of variables to be considered when running the DsseAllocation method
+    @param inj_code: additional number of variables to be considered when running the DsseAllocation method
     return: 1. H9: Jacobian for S_real
             2. H10: Jacobian for S_imag
     """
@@ -632,8 +632,8 @@ def calculateJacobiCurrentPmu(measurements, nodes_num, Gmatrix, Bmatrix, add_var
     Ipmu_mag_meas = measurements.getMeasurements(type=MeasType.Ipmu_mag)
     # get all measurements of type MeasType.Vpmu_phase
     Ipmu_phase_meas = measurements.getMeasurements(type=MeasType.Vpmu_phase)
-    H9 = np.zeros((len(Ipmu_mag_meas), 2 * nodes_num + add_var))
-    H10 = np.zeros((len(Ipmu_mag_meas), 2 * nodes_num + add_var))
+    H9 = np.zeros((len(Ipmu_mag_meas), 2 * nodes_num + inj_code))
+    H10 = np.zeros((len(Ipmu_mag_meas), 2 * nodes_num + inj_code))
 
     for index, measurement in enumerate(Ipmu_mag_meas):
         iamp = measurement.meas_value_ideal
@@ -691,7 +691,7 @@ def update_W_matrix(measurements, weights, W, type):
     return W
 
 
-def update_h1_vector(measurements, V, vidx, nvi, nodes_num, add_var, type):
+def update_h1_vector(measurements, V, vidx, nvi, nodes_num, inj_code, type):
     """
     update h1 and H1 vectors
 
@@ -701,7 +701,7 @@ def update_h1_vector(measurements, V, vidx, nvi, nodes_num, add_var, type):
     @param nvi: len of vidx
     @param nodes_num: number of nodes of the grid - len(system.nodes)
     @param type: 1 for DssePmu and DsseMixed, 2 for DsseTrad
-    @param add_var: additional number of variables to be considered when running the DsseAllocation method
+    @param inj_code: additional number of variables to be considered when running the DsseAllocation method
     return: vector h1 and H1
     """
 
@@ -709,9 +709,9 @@ def update_h1_vector(measurements, V, vidx, nvi, nodes_num, add_var, type):
     h1 = np.zeros(nvi)
     # the Jacobian rows where voltage measurements are presents is updated
     if type == 1:
-        H1 = np.zeros((nvi, 2 * nodes_num + add_var))
+        H1 = np.zeros((nvi, 2 * nodes_num + inj_code))
     elif type == 2:
-        H1 = np.zeros((nvi, 2 * nodes_num - 1 + add_var))
+        H1 = np.zeros((nvi, 2 * nodes_num - 1 + inj_code))
     for i, index_vmag in enumerate(vidx):
         # get index of the node
         node_index = measurements.measurements[index_vmag].element.index
@@ -728,7 +728,7 @@ def update_h1_vector(measurements, V, vidx, nvi, nodes_num, add_var, type):
     return h1, H1
 
 
-def update_h6_vector(measurements, V, iidx, nii, Yabs_matrix, Yphase_matrix, nodes_num, num_iter, add_var, type):
+def update_h6_vector(measurements, V, iidx, nii, Yabs_matrix, Yphase_matrix, nodes_num, num_iter, inj_code, type):
     """
     update h6 and H6 vectors where current flows are present
 
@@ -741,7 +741,7 @@ def update_h6_vector(measurements, V, iidx, nii, Yabs_matrix, Yphase_matrix, nod
     @param nodes_num: number of nodes of the grid - len(system.nodes)
     @param num_iter: number of current iteration
     @param type: 1 for DssePmu and DsseMixed, 2 for DsseTrad
-    @param add_var: additional number of variables to be considered when running the DsseAllocation method
+    @param inj_code: additional number of variables to be considered when running the DsseAllocation method
     return: vector h6 and H6
     """
 
@@ -751,9 +751,9 @@ def update_h6_vector(measurements, V, iidx, nii, Yabs_matrix, Yphase_matrix, nod
     h6complex = np.zeros((nii), dtype=complex)
     h6 = np.ones((nii))
     if type == 1:
-        H6 = np.zeros((nii, 2 * nodes_num + add_var))
+        H6 = np.zeros((nii, 2 * nodes_num + inj_code))
     elif type == 2:
-        H6 = np.zeros((nii, 2 * nodes_num - 1 + add_var))
+        H6 = np.zeros((nii, 2 * nodes_num - 1 + inj_code))
 
     for i, index_imag in enumerate(iidx):
         # get index of the start node
@@ -792,7 +792,7 @@ def update_h6_vector(measurements, V, iidx, nii, Yabs_matrix, Yphase_matrix, nod
 
     return h6, H6
 
-def update_h2_h3_vector(measurements, nodes_num, V, Gmatrix, Bmatrix, add_var, Kfactor, type):
+def update_h2_h3_vector(measurements, nodes_num, V, Gmatrix, Bmatrix, inj_code, Kfactor, type):
     """
     It calculates the Jacobian for Power Injection Measurements
     (converted to equivalent rectangualar current measurements)
@@ -803,7 +803,7 @@ def update_h2_h3_vector(measurements, nodes_num, V, Gmatrix, Bmatrix, add_var, K
     @param Gmatrix
     @param Bmatrix
     @param type: 1 for DssePmu and DsseMixed, 2 for DsseTrad
-    @param add_var: additional number of variables to be considered when running the DsseAllocation method
+    @param inj_code: additional number of variables to be considered when running the DsseAllocation method
     @param Kfactor: temporary value of the scaling factor given by the DsseAllocation method
     return: 1. H2: Jacobian for Pinj
             2. H3: Jacobian for Qinj
@@ -815,11 +815,11 @@ def update_h2_h3_vector(measurements, nodes_num, V, Gmatrix, Bmatrix, add_var, K
     h2 = np.zeros((len(pinj_meas)))
     h3 = np.zeros((len(qinj_meas)))
     if type == 1:
-        H2 = np.zeros((len(pinj_meas), 2 * nodes_num + add_var))
-        H3 = np.zeros((len(qinj_meas), 2 * nodes_num + add_var))
+        H2 = np.zeros((len(pinj_meas), 2 * nodes_num + inj_code))
+        H3 = np.zeros((len(qinj_meas), 2 * nodes_num + inj_code))
     elif type == 2:
-        H2 = np.zeros((len(pinj_meas), 2 * nodes_num - 1 + add_var))
-        H3 = np.zeros((len(qinj_meas), 2 * nodes_num - 1 + add_var))
+        H2 = np.zeros((len(pinj_meas), 2 * nodes_num - 1 + inj_code))
+        H3 = np.zeros((len(qinj_meas), 2 * nodes_num - 1 + inj_code))
 
     for index, measurement in enumerate(pinj_meas):
         m = measurement.element.index
@@ -834,10 +834,10 @@ def update_h2_h3_vector(measurements, nodes_num, V, Gmatrix, Bmatrix, add_var, K
             #    K = Kfactor[1]
             #    idxK = 1
         H2[index][:nodes_num] = K*Gmatrix[m]
-        H2[index][nodes_num:-add_var] = -K*Bmatrix[m][idx:]
+        H2[index][nodes_num:-inj_code] = -K*Bmatrix[m][idx:]
         H2[index][2*nodes_num-idx+idxK] = np.inner(Gmatrix[m],V.real) - np.inner(Bmatrix[m][idx:],V.imag)
         H3[index][:nodes_num] = K*Bmatrix[m]
-        H3[index][nodes_num:-add_var] = K*Gmatrix[m][idx:]
+        H3[index][nodes_num:-inj_code] = K*Gmatrix[m][idx:]
         H3[index][2*nodes_num-idx+idxK] = np.inner(Bmatrix[m],V.real) + np.inner(Gmatrix[m][idx:],V.imag)
         h2[index] = K*(np.inner(Gmatrix[m],V.real) - np.inner(Bmatrix[m][idx:],V.imag))
         h3[index] = K*(np.inner(Bmatrix[m],V.real) + np.inner(Gmatrix[m][idx:],V.imag))
