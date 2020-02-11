@@ -45,7 +45,6 @@ class Results():
         self.branches = []
         self.Ymatrix = system.Ymatrix
         self.Bmatrix = system.Bmatrix
-        self.Adjacencies = system.Adjacencies
         for node in system.nodes:
             if node.ideal_connected_with == '':
                 self.nodes.append(ResultsNode(topo_node=node))

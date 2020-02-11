@@ -40,14 +40,14 @@ def solve(system):
                 H[m][i] = 1
                 H[m + 1][i2] = 1
             elif node_type is BusType.PQ:
-                H[m][:node.num] = np.real(system.Ymatrix[i])
-                H[m][node.num:] = - np.imag(system.Ymatrix[i])
-                H[m+1][:node.num] = np.imag(system.Ymatrix[i])
-                H[m+1][node.num:] = np.real(system.Ymatrix[i])
+                H[m][:nodes_num] = np.real(system.Ymatrix[i])
+                H[m][nodes_num:] = - np.imag(system.Ymatrix[i])
+                H[m+1][:nodes_num] = np.imag(system.Ymatrix[i])
+                H[m+1][nodes_num:] = np.real(system.Ymatrix[i])
             elif node_type is BusType.PV:
                 z[m + 1] = np.real(node.power)
-                H[m][:node.num] = np.real(system.Ymatrix[i])
-                H[m][node.num:] = - np.imag(system.Ymatrix[i])
+                H[m][:nodes_num] = np.real(system.Ymatrix[i])
+                H[m][nodes_num:] = - np.imag(system.Ymatrix[i])
 
     epsilon = 10 ** (-10)
     #epsilon = 0.01

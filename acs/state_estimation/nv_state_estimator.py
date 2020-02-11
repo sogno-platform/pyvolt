@@ -3,7 +3,7 @@ from acs.state_estimation.results import Results
 from acs.state_estimation.measurement import *
 
 
-def DsseCall(system, measurements):
+def DsseCall(system, measurements, solver_type="conventional"):
     """
     Performs state estimation
     It identifies the type of measurements present in the measurement set and
@@ -37,13 +37,20 @@ def DsseCall(system, measurements):
     Yabs_matrix = np.absolute(system.Ymatrix)
     Yphase_matrix = np.angle(system.Ymatrix)
 
+
     # run Estimator.
-    if est_code == 1:
-        Vest = DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matrix)
-    elif est_code == 2:
-        Vest = DssePmu(nodes_num, measurements, Gmatrix, Bmatrix)
-    else:
-        Vest = DsseMixed(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matrix)
+    if solver_type == "conventional":
+        if est_code == 1:
+            Vest = DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matrix)
+        elif est_code == 2:
+            Vest = DssePmu(nodes_num, measurements, Gmatrix, Bmatrix)
+        else:
+            Vest = DsseMixed(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matrix)
+    elif solver_type == "advanced":
+        # TODO: derive from system inj_code analyzing whether load and gens connected to all nodes
+        inj_code = 1
+        if inj_code == 1 or inj_code == 2:
+            Vest = DsseAllocation(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matrix, est_code, inj_code)
 
     # calculate all the other quantities of the grid
     results = Results(system)
@@ -410,7 +417,10 @@ def DsseAllocation(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphas
 
     V = np.ones(nodes_num) + 1j * np.zeros(nodes_num)
     Kfactor = np.ones(inj_code)
-    State = np.concatenate((np.ones(nodes_num), np.zeros(nodes_num), Kfactor), axis=0)
+    if type == 1:
+        State = np.concatenate((np.ones(nodes_num), np.zeros(nodes_num-1), Kfactor), axis=0)
+    elif type == 2:
+        State = np.concatenate((np.ones(nodes_num), np.zeros(nodes_num), Kfactor), axis=0)
     epsilon = 5
     num_iter = 0
 
@@ -443,6 +453,16 @@ def DsseAllocation(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphas
 
         """ WLS computation """
         H = np.concatenate((H1, H2, H3, H4, H5, H6, H7, H8, H9, H10), axis=0)
+        if num_iter == 0:
+            if meas_code == 1:
+                H = numpy.delete(H,2*node.num-1,1)
+            else:
+                H = numpy.delete(H,2*node.num,1)
+            if inj_code == 2:
+                if meas_code == 1:
+                    H = numpy.delete(H,2*node.num-1,1)
+                else:
+                    H = numpy.delete(H,2*node.num,1)
         y = np.concatenate((h1, h2, h3, h4, h5, h6, h7, h8, h9, h10), axis=0)
         res = np.subtract(z, y)
         g = np.inner(H.transpose(), np.inner(W, res))
@@ -451,6 +471,8 @@ def DsseAllocation(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphas
 
         Ginv = np.linalg.inv(G)
         Delta_State = np.inner(Ginv, g)
+        if num_iter == 0:
+            Delta_State = numpy.concatenate((Delta_State,numpy.zeros((inj_code))),axis=0)
 
         State = State + Delta_State
         epsilon = np.amax(np.absolute(Delta_State))
@@ -827,6 +849,9 @@ def update_h2_h3_vector(measurements, nodes_num, V, Gmatrix, Bmatrix, inj_code, 
             idx = 0
         elif type == 2:
             idx = 1
+        K = Kfactor[0]
+        idxK = 0
+        # TODO: 
         #if type(m) == 'load':
             #    K = Kfactor[0]
             #    idxK = 0
@@ -835,12 +860,12 @@ def update_h2_h3_vector(measurements, nodes_num, V, Gmatrix, Bmatrix, inj_code, 
             #    idxK = 1
         H2[index][:nodes_num] = K*Gmatrix[m]
         H2[index][nodes_num:-inj_code] = -K*Bmatrix[m][idx:]
-        H2[index][2*nodes_num-idx+idxK] = np.inner(Gmatrix[m],V.real) - np.inner(Bmatrix[m][idx:],V.imag)
+        H2[index][2*nodes_num-idx+idxK] = np.inner(Gmatrix[m],V.real) - np.inner(Bmatrix[m][idx:],V.imag[idx:])
         H3[index][:nodes_num] = K*Bmatrix[m]
         H3[index][nodes_num:-inj_code] = K*Gmatrix[m][idx:]
-        H3[index][2*nodes_num-idx+idxK] = np.inner(Bmatrix[m],V.real) + np.inner(Gmatrix[m][idx:],V.imag)
-        h2[index] = K*(np.inner(Gmatrix[m],V.real) - np.inner(Bmatrix[m][idx:],V.imag))
-        h3[index] = K*(np.inner(Bmatrix[m],V.real) + np.inner(Gmatrix[m][idx:],V.imag))
+        H3[index][2*nodes_num-idx+idxK] = np.inner(Bmatrix[m],V.real) + np.inner(Gmatrix[m][idx:],V.imag[idx:])
+        h2[index] = K*(np.inner(Gmatrix[m],V.real) - np.inner(Bmatrix[m][idx:],V.imag[idx:]))
+        h3[index] = K*(np.inner(Bmatrix[m],V.real) + np.inner(Gmatrix[m][idx:],V.imag[idx:]))
 
     return h2, h3, H2, H3
 
