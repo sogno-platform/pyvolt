@@ -40,24 +40,14 @@ def solve(system):
                 H[m][i] = 1
                 H[m + 1][i2] = 1
             elif node_type is BusType.PQ:
-                H[m][i] = np.real(system.Ymatrix[i][i])
-                H[m][i2] = - np.imag(system.Ymatrix[i][i])
-                H[m + 1][i] = np.imag(system.Ymatrix[i][i])
-                H[m + 1][i2] = np.real(system.Ymatrix[i][i])
-                idx1 = np.subtract(system.Adjacencies[i], 1)
-                idx2 = idx1 + nodes_num
-                H[m][idx1] = np.real(system.Ymatrix[i][idx1])
-                H[m][idx2] = - np.imag(system.Ymatrix[i][idx1])
-                H[m + 1][idx1] = np.imag(system.Ymatrix[i][idx1])
-                H[m + 1][idx2] = np.real(system.Ymatrix[i][idx1])
+                H[m][:node.num] = numpy.real(Ymatrix[i])
+                H[m][node.num:] = - numpy.imag(Ymatrix[i])
+                H[m+1][:node.num] = numpy.imag(Ymatrix[i])
+                H[m+1][node.num:] = numpy.real(Ymatrix[i])
             elif node_type is BusType.PV:
                 z[m + 1] = np.real(node.power)
-                H[m][i] = np.real(system.Ymatrix[i][i])
-                H[m][i2] = - np.imag(system.Ymatrix[i][i])
-                idx1 = np.subtract(system.Adjacencies[i], 1)
-                idx2 = idx1 + nodes_num
-                H[m][idx1] = np.real(system.Ymatrix[i][idx1])
-                H[m][idx2] = - np.imag(system.Ymatrix[i][idx1])
+                H[m][:node.num] = numpy.real(Ymatrix[i])
+                H[m][node.num:] = - numpy.imag(Ymatrix[i])
 
     epsilon = 10 ** (-10)
     #epsilon = 0.01
