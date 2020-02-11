@@ -71,12 +71,13 @@ def DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matr
     # calculate  weightsmatrix (obtained as stdandard_deviations^-2)
     weights = measurements.getWeightsMatrix()
     W = np.diag(weights)
+    inj_code = 0
 
     # Jacobian for Power Injection Measurements
-    H2, H3 = calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, type=2)
+    H2, H3 = calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, inj_code, type=2)
 
     # Jacobian for branch Power Measurements
-    H4, H5 = calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, type=2)
+    H4, H5 = calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, inj_code, type=2)
 
     # get array which contains the index of measurements type V_mag and I_mag
     vidx = measurements.getIndexOfMeasurements(type=MeasType.V_mag)
@@ -110,7 +111,7 @@ def DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matr
         z = convertSbranchMeasIntoCurrents(measurements, V, z, p1br, q1br, p2br, q2br)
 
         """ Voltage Magnitude Measurements """
-        h1, H1 = update_h1_vector(measurements, V, vidx, nvi, nodes_num, type=2)
+        h1, H1 = update_h1_vector(measurements, V, vidx, nvi, nodes_num, inj_code, type=2)
 
         """ Power Injection Measurements """
         # h(x) vector where power injections are present
@@ -123,7 +124,7 @@ def DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matr
         h5 = np.inner(H5, State)
 
         """ Current Magnitude Measurements """
-        h6, H6 = update_h6_vector(measurements, V, iidx, nii, Yabs_matrix, Yphase_matrix, nodes_num, num_iter, type=2)
+        h6, H6 = update_h6_vector(measurements, V, iidx, nii, Yabs_matrix, Yphase_matrix, nodes_num, num_iter, inj_code, type=2)
 
         """ WLS computation """
         # all the sub-matrixes of H calcualted so far are merged in a unique matrix
@@ -170,19 +171,20 @@ def DssePmu(nodes_num, measurements, Gmatrix, Bmatrix):
     # calculate weights matrix (obtained as stdandard_deviations^-2)
     weights = measurements.getWeightsMatrix()
     W = np.diag(weights)
+    inj_code = 0
 
     # Jacobian for Power Injection Measurements
-    H2, H3 = calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, type=1)
+    H2, H3 = calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, inj_code, type=1)
 
     # Jacobian for branch Power Measurements
-    H4, H5 = calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, type=1)
+    H4, H5 = calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, inj_code, type=1)
 
     # Jacobian for Voltage Pmu Measurements
-    H7, H8 = calculateJacobiVoltagePmu(measurements, nodes_num, Gmatrix, Bmatrix)
+    H7, H8 = calculateJacobiVoltagePmu(measurements, nodes_num, Gmatrix, Bmatrix, inj_code)
     W = update_W_matrix(measurements, weights, W, "Vpmu")
 
     # Jacobian for Current Pmu Measurements
-    H9, H10 = calculateJacobiCurrentPmu(measurements, nodes_num, Gmatrix, Bmatrix)
+    H9, H10 = calculateJacobiCurrentPmu(measurements, nodes_num, Gmatrix, Bmatrix, inj_code)
     W = update_W_matrix(measurements, weights, W, "Ipmu")
 
     # get an array with all measured values (affected by uncertainty)
@@ -255,21 +257,22 @@ def DsseMixed(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_mat
     # calculate weights matrix (obtained as stdandard_deviations^-2)
     weights = measurements.getWeightsMatrix()
     W = np.diag(weights)
+    inj_code = 0
 
     # Jacobian Matrix. Includes the derivatives of the measurements (voltages, currents, powers) with respect to the states (voltages)
 
     # Jacobian for Power Injection Measurements
-    H2, H3 = calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, type=1)
+    H2, H3 = calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, inj_code, type=1)
 
     # Jacobian for branch Power Measurements
-    H4, H5 = calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, type=1)
+    H4, H5 = calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, inj_code, type=1)
 
     # Jacobian for Voltage Pmu Measurements
-    H7, H8 = calculateJacobiVoltagePmu(measurements, nodes_num, Gmatrix, Bmatrix)
+    H7, H8 = calculateJacobiVoltagePmu(measurements, nodes_num, Gmatrix, Bmatrix, inj_code)
     W = update_W_matrix(measurements, weights, W, "Vpmu")
 
     # Jacobian for Current Pmu Measurements
-    H9, H10 = calculateJacobiCurrentPmu(measurements, nodes_num, Gmatrix, Bmatrix)
+    H9, H10 = calculateJacobiCurrentPmu(measurements, nodes_num, Gmatrix, Bmatrix, inj_code)
     W = update_W_matrix(measurements, weights, W, "Ipmu")
 
     # get array which contains the index of measurements type V_mag and I_mag
@@ -303,7 +306,7 @@ def DsseMixed(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_mat
         z = convertSbranchMeasIntoCurrents(measurements, V, z, p1br, q1br, p2br, q2br)
 
         """ Voltage Magnitude Measurements """
-        h1, H1 = update_h1_vector(measurements, V, vidx, nvi, nodes_num, type=1)
+        h1, H1 = update_h1_vector(measurements, V, vidx, nvi, nodes_num, inj_code, type=1)
 
         """ Power Injection Measurements """
         h2 = np.inner(H2, State)
@@ -314,7 +317,7 @@ def DsseMixed(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_mat
         h5 = np.inner(H5, State)
 
         """ Current Magnitude Measurements """
-        h6, H6 = update_h6_vector(measurements, V, iidx, nii, Yabs_matrix, Yphase_matrix, nodes_num, num_iter, type=1)
+        h6, H6 = update_h6_vector(measurements, V, iidx, nii, Yabs_matrix, Yphase_matrix, nodes_num, num_iter, inj_code, type=1)
 
         """ PMU Voltage Measurements """
         h7 = np.inner(H7, State)
@@ -376,7 +379,7 @@ def DsseAllocation(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphas
         type=2
 
     # Jacobian for branch Power Measurements
-    H4, H5 = calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, type, inj_code)
+    H4, H5 = calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, inj_code, type)
 
     # Jacobian for Voltage Pmu Measurements
     H7, H8 = calculateJacobiVoltagePmu(measurements, nodes_num, Gmatrix, Bmatrix, inj_code)
@@ -418,17 +421,17 @@ def DsseAllocation(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphas
         z = convertSbranchMeasIntoCurrents(measurements, V, z, p1br, q1br, p2br, q2br)
 
         """ Voltage Magnitude Measurements """
-        h1, H1 = update_h1_vector(measurements, V, vidx, nvi, nodes_num, type, inj_code)
+        h1, H1 = update_h1_vector(measurements, V, vidx, nvi, nodes_num, inj_code, type)
 
         """ Power Injection Measurements """
-        h2, h3, H2, H3 = update_h2_h3_vector(measurements, nodes_num, V, Gmatrix, Bmatrix, type, inj_code, Kfactor)
+        h2, h3, H2, H3 = update_h2_h3_vector(measurements, nodes_num, V, Gmatrix, Bmatrix, inj_code, Kfactor, type)
 
         """ Power Flow Measurements """
         h4 = np.inner(H4, State)
         h5 = np.inner(H5, State)
 
         """ Current Magnitude Measurements """
-        h6, H6 = update_h6_vector(measurements, V, iidx, nii, Yabs_matrix, Yphase_matrix, nodes_num, num_iter, type, inj_code)
+        h6, H6 = update_h6_vector(measurements, V, iidx, nii, Yabs_matrix, Yphase_matrix, nodes_num, num_iter, inj_code, type)
 
         """ PMU Voltage Measurements """
         h7 = np.inner(H7, State)
@@ -461,7 +464,7 @@ def DsseAllocation(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphas
     return V
 
 
-def calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, type, add_var):
+def calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, add_var, type):
     """
     It calculates the Jacobian for Power Injection Measurements
     (converted to equivalent rectangualar current measurements)
@@ -499,7 +502,7 @@ def calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, type, a
     return H2, H3
 
 
-def calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, type, add_var):
+def calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, add_var, type):
     """
     It calculates the Jacobian for branch Power Measurements
     (converted to equivalent rectangualar current measurements)
@@ -688,7 +691,7 @@ def update_W_matrix(measurements, weights, W, type):
     return W
 
 
-def update_h1_vector(measurements, V, vidx, nvi, nodes_num, type, add_var):
+def update_h1_vector(measurements, V, vidx, nvi, nodes_num, add_var, type):
     """
     update h1 and H1 vectors
 
@@ -725,7 +728,7 @@ def update_h1_vector(measurements, V, vidx, nvi, nodes_num, type, add_var):
     return h1, H1
 
 
-def update_h6_vector(measurements, V, iidx, nii, Yabs_matrix, Yphase_matrix, nodes_num, num_iter, type, add_var):
+def update_h6_vector(measurements, V, iidx, nii, Yabs_matrix, Yphase_matrix, nodes_num, num_iter, add_var, type):
     """
     update h6 and H6 vectors where current flows are present
 
@@ -789,7 +792,7 @@ def update_h6_vector(measurements, V, iidx, nii, Yabs_matrix, Yphase_matrix, nod
 
     return h6, H6
 
-def update_h2_h3_vector(measurements, nodes_num, V, Gmatrix, Bmatrix, type, add_var, Kfactor):
+def update_h2_h3_vector(measurements, nodes_num, V, Gmatrix, Bmatrix, add_var, Kfactor, type):
     """
     It calculates the Jacobian for Power Injection Measurements
     (converted to equivalent rectangualar current measurements)
