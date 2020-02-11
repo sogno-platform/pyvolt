@@ -455,14 +455,14 @@ def DsseAllocation(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphas
         H = np.concatenate((H1, H2, H3, H4, H5, H6, H7, H8, H9, H10), axis=0)
         if num_iter == 0:
             if meas_code == 1:
-                H = numpy.delete(H,2*node.num-1,1)
+                H = np.delete(H,2*nodes_num-1,1)
             else:
-                H = numpy.delete(H,2*node.num,1)
+                H = np.delete(H,2*nodes_num,1)
             if inj_code == 2:
                 if meas_code == 1:
-                    H = numpy.delete(H,2*node.num-1,1)
+                    H = np.delete(H,2*nodes_num-1,1)
                 else:
-                    H = numpy.delete(H,2*node.num,1)
+                    H = np.delete(H,2*nodes_num,1)
         y = np.concatenate((h1, h2, h3, h4, h5, h6, h7, h8, h9, h10), axis=0)
         res = np.subtract(z, y)
         g = np.inner(H.transpose(), np.inner(W, res))
@@ -472,7 +472,7 @@ def DsseAllocation(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphas
         Ginv = np.linalg.inv(G)
         Delta_State = np.inner(Ginv, g)
         if num_iter == 0:
-            Delta_State = numpy.concatenate((Delta_State,numpy.zeros((inj_code))),axis=0)
+            Delta_State = np.concatenate((Delta_State,np.zeros((inj_code))),axis=0)
 
         State = State + Delta_State
         epsilon = np.amax(np.absolute(Delta_State))
