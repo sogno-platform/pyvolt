@@ -36,15 +36,14 @@ def DsseCall(system, measurements):
     Bmatrix = system.Ymatrix.imag
     Yabs_matrix = np.absolute(system.Ymatrix)
     Yphase_matrix = np.angle(system.Ymatrix)
-    Adj = system.Adjacencies
 
     # run Estimator.
     if est_code == 1:
-        Vest = DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matrix, Adj)
+        Vest = DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matrix)
     elif est_code == 2:
-        Vest = DssePmu(nodes_num, measurements, Gmatrix, Bmatrix, Adj)
+        Vest = DssePmu(nodes_num, measurements, Gmatrix, Bmatrix)
     else:
-        Vest = DsseMixed(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matrix, Adj)
+        Vest = DsseMixed(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matrix)
 
     # calculate all the other quantities of the grid
     results = Results(system)
@@ -54,7 +53,7 @@ def DsseCall(system, measurements):
     return results
 
 
-def DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matrix, Adj):
+def DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matrix):
     """
     Traditional state estimator
     It performs state estimation using rectangular node voltage state variables
@@ -66,7 +65,6 @@ def DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matr
     @param Bmatrix: susceptance matrix
     @param Yabs_matrix: magnitude of the admittance matrix
     @param Yphase_matrix: phase of the admittance matrix
-    @param Adj: 
     return: np.array V - estimated voltages
     """
 
@@ -75,7 +73,7 @@ def DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matr
     W = np.diag(weights)
 
     # Jacobian for Power Injection Measurements
-    H2, H3 = calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, Adj, type=2)
+    H2, H3 = calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, type=2)
 
     # Jacobian for branch Power Measurements
     H4, H5 = calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, type=2)
@@ -157,7 +155,7 @@ def DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matr
     return V
 
 
-def DssePmu(nodes_num, measurements, Gmatrix, Bmatrix, Adj):
+def DssePmu(nodes_num, measurements, Gmatrix, Bmatrix):
     """
     Traditional state estimator
     It performs state estimation using rectangular node voltage state variables
@@ -167,7 +165,6 @@ def DssePmu(nodes_num, measurements, Gmatrix, Bmatrix, Adj):
     @param measurements: Vector of measurements in Input (voltages, currents, powers)
     @param Gmatrix
     @param Bmatrix
-    @param Adj
     return: np.array V - estimated voltages
     """
     # calculate weights matrix (obtained as stdandard_deviations^-2)
@@ -175,7 +172,7 @@ def DssePmu(nodes_num, measurements, Gmatrix, Bmatrix, Adj):
     W = np.diag(weights)
 
     # Jacobian for Power Injection Measurements
-    H2, H3 = calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, Adj, type=1)
+    H2, H3 = calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, type=1)
 
     # Jacobian for branch Power Measurements
     H4, H5 = calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, type=1)
@@ -239,7 +236,7 @@ def DssePmu(nodes_num, measurements, Gmatrix, Bmatrix, Adj):
     return V
 
 
-def DsseMixed(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matrix, Adj):
+def DsseMixed(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matrix):
     """
     Traditional state estimator
     It performs state estimation using rectangular node voltage state variables
@@ -252,7 +249,6 @@ def DsseMixed(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_mat
     @param Bmatrix
     @param Yabs_matrix
     @param Yphase_matrix
-    @param Adj
     return: np.array V (estimated voltages)
     """
 
@@ -263,7 +259,7 @@ def DsseMixed(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_mat
     # Jacobian Matrix. Includes the derivatives of the measurements (voltages, currents, powers) with respect to the states (voltages)
 
     # Jacobian for Power Injection Measurements
-    H2, H3 = calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, Adj, type=1)
+    H2, H3 = calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, type=1)
 
     # Jacobian for branch Power Measurements
     H4, H5 = calculateJacobiBranchPower(measurements, nodes_num, Gmatrix, Bmatrix, type=1)
@@ -350,7 +346,7 @@ def DsseMixed(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_mat
     return V
 
 
-def calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, Adj, type):
+def calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, type):
     """
     It calculates the Jacobian for Power Injection Measurements
     (converted to equivalent rectangualar current measurements)
@@ -359,7 +355,6 @@ def calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, Adj, ty
     @param nodes_num: len of system.nodes
     @param Gmatrix
     @param Bmatrix
-    @param Adj
     @param type: 1 for DssePmu and DssePmu, 2 for DsseTrad
     return: 1. H2: Jacobian for Pinj
             2. H3: Jacobian for Qinj
@@ -378,26 +373,13 @@ def calculateJacobiMatrixSinj(measurements, nodes_num, Gmatrix, Bmatrix, Adj, ty
     for index, measurement in enumerate(pinj_meas):
         m = measurement.element.index
         if type == 1:
-            m2 = m + nodes_num
+            idx = 0
         elif type == 2:
-            m2 = m + nodes_num - 1
-        H2[index][m] = Gmatrix[m][m]
-        H2[index][m2] = - Bmatrix[m][m]
-        H3[index][m] = Bmatrix[m][m]
-        H3[index][m2] = Gmatrix[m][m]
-        idx = np.subtract(Adj[m], 1)
-        H2[index][idx] = Gmatrix[m][idx]
-        H3[index][idx] = Bmatrix[m][idx]
-        if type == 1:
-            idx2 = idx + nodes_num
-        elif type == 2:
-            if 0 in idx:
-                pos = np.where(idx == 0)
-                idx = np.delete(idx, pos)
-            idx2 = idx + nodes_num - 1
-        H2[index][idx2] = - Bmatrix[m][idx]
-        H3[index][idx2] = Gmatrix[m][idx]
-
+            idx = 1
+        H2[index][:nodes_num] = Gmatrix[m]
+        H2[index][nodes_num:] = -Bmatrix[m][idx:]
+        H3[index][:nodes_num] = Bmatrix[m]
+        H3[index][nodes_num:] = Gmatrix[m][idx:]
     return H2, H3
 
 
