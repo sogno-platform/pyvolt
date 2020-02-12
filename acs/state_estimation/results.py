@@ -44,7 +44,7 @@ class Results():
         self.nodes = []
         self.branches = []
         self.Ymatrix = system.Ymatrix
-        self.Adjacencies = system.Adjacencies
+        self.Bmatrix = system.Bmatrix
         for node in system.nodes:
             if node.ideal_connected_with == '':
                 self.nodes.append(ResultsNode(topo_node=node))
@@ -106,7 +106,7 @@ class Results():
         for branch in self.branches:
             fr = branch.topology_branch.start_node.index
             to = branch.topology_branch.end_node.index
-            branch.current_pu = - (self.nodes[fr].voltage_pu - self.nodes[to].voltage_pu) * self.Ymatrix[fr][to]
+            branch.current_pu = - (self.nodes[fr].voltage_pu - self.nodes[to].voltage_pu) * self.Ymatrix[fr][to] + 1j*self.Bmatrix[fr][to] * self.nodes[fr].voltage_pu
             branch.current = branch.current_pu * branch.topology_branch.base_current
 
     def calculateIinj(self):
@@ -121,7 +121,7 @@ class Results():
                     fr = fr + branch.current_pu
                 if node.topology_node.index == branch.topology_branch.end_node.index:
                     to = to + branch.current_pu
-            node.current_pu = to - fr
+            node.current_pu = fr - to
             node.current = node.current_pu * node.topology_node.base_current
 
     def calculateSinj(self):
