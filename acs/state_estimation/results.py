@@ -152,7 +152,7 @@ class Results():
             for node in self.nodes:
                 if branch_index == node.topology_node.index:
                     branch.power2_pu = -node.voltage_pu * (np.conj(branch.current_pu))
-                    branch.power = branch.power2_pu * branch.topology_branch.base_apparent_power
+                    branch.power2 = branch.power2_pu * branch.topology_branch.base_apparent_power
 
     def get_node(self, index=None, uuid=None):
         """
