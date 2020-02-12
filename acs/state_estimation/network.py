@@ -178,8 +178,8 @@ class System():
                     break
             for obj_SvPowerFlow in list_SvPowerFlow:
                 if obj_SvPowerFlow.Terminal.TopologicalNode.mRID == uuid_TPNode:
-                    pInj += obj_SvPowerFlow.p
-                    qInj += obj_SvPowerFlow.q           
+                    pInj -= obj_SvPowerFlow.p
+                    qInj -= obj_SvPowerFlow.q           
             for obj_Terminal in list_Terminals_ES:
                 if obj_Terminal.TopologicalNode.mRID == uuid_TPNode:
                     for obj_EnergySource in list_EnergySources:
@@ -190,8 +190,8 @@ class System():
                 if obj_Terminal.TopologicalNode.mRID == uuid_TPNode:
                     for obj_EnergyConsumer in list_EnergyConsumer:
                         if obj_EnergyConsumer.mRID == obj_Terminal.ConductingEquipment.mRID:
-                            pInj += obj_EnergyConsumer.p
-                            qInj += obj_EnergyConsumer.q
+                            pInj -= obj_EnergyConsumer.p
+                            qInj -= obj_EnergyConsumer.q
             
             base_voltage = TPNode.BaseVoltage.nominalVoltage
             self.nodes.append(Node(name=name, uuid=uuid_TPNode, base_voltage=base_voltage, v_mag=vmag,

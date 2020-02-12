@@ -102,6 +102,7 @@ class Results():
     def calculateI(self):
         """
         To calculate the branch currents
+        Note: branch current flowing into start node coming from end node
         """
         for branch in self.branches:
             fr = branch.topology_branch.start_node.index
@@ -111,7 +112,8 @@ class Results():
 
     def calculateIinj(self):
         """
-        calculate current injections at a node
+        Calculate current injections at a node
+        Note: node current flowing into the node
         """
         for node in self.nodes:
             to = complex(0, 0)  # sum of the currents flowing to the node
