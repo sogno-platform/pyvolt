@@ -17,7 +17,7 @@ for file in cim_files:
 print(cim_list)
 
 # read cim files and create new network.Systen object
-res, _ = cimpy.cim_import(xml_files_abs, "cgmes_v2_4_15")
+res, _, _ = cimpy.cim_import(cim_list, "cgmes_v2_4_15")
 system = network.System()
 base_apparent_power = 25  # MW
 system.load_cim_data(res, base_apparent_power)
