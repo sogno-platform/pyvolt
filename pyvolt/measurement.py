@@ -75,7 +75,7 @@ class MeasurementSet:
         """
         read measurements from file.
 
-        @param powerflow_results: object of class acs.state_estimation.results.Results
+        @param powerflow_results: object of class pyvolt.results.Results
         @param file_name
         """
         with open(file_name) as json_file:

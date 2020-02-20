@@ -2,14 +2,15 @@
 
 from setuptools import setup
 
-setup(name='acs-state-estimation',
+setup(name='pyvolt',
       version='0.2',
       description='State Estimation',
       author='Marco Pau, Markus Mirz, Jan Dinkelbach',
       author_email='acs-software@eonerc.rwth-aachen.de',
-      packages = [ 'acs.state_estimation' ],
+      packages = [ 'pyvolt' ],
       install_requires = [
         'matplotlib',
-        'numpy'        
+        'numpy',
+        'cimpy'        
       ]
 )
