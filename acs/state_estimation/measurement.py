@@ -64,12 +64,14 @@ class MeasurementSet:
         """
 
         for meas in self.measurements:
-            if meas.element.uuid == element_uuid and meas.meas_type == meas_type:
-                if not value_in_pu:
-                    if meas.meas_type == MeasType.Vpmu_mag:
-                        meas_value = meas_data / (meas.element.baseVoltage * 1000 / np.sqrt(
-                            3))  # TODO - Fix phase-to-phase voltage problem
+            if meas.element.uuid == element_uuid and meas.meas_type == meas_type:                                
+                if not value_in_pu and (meas.meas_type == MeasType.Vpmu_mag or meas.meas_type == MeasType.V_mag):
+                    # pu conversion assuming that meas_data from device in [V] and single-phase value, while baseVoltage from CIM in [kV] and three-phase value
+                    meas_value = meas_data / (meas.element.baseVoltage / np.sqrt(3) * 1000)  
                 meas.meas_value = meas_value
+            else:
+                # measurements not already included are neither updated nor added
+                pass
 
     def read_measurements_from_file(self, powerflow_results, file_name):
         """
