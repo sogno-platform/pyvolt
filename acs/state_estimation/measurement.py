@@ -167,7 +167,7 @@ class MeasurementSet:
                     self.create_measurement(element, ElemType.Branch, MeasType.Ipmu_mag, meas_value_ideal_mag, unc_mag)
                     self.create_measurement(element, ElemType.Branch, MeasType.Ipmu_phase, meas_value_ideal_phase, unc_phase)
 
-    def meas_creation(self, dist="normal", seed=None):
+    def meas_creation(self, dist="normal", seed=None, type="simulation"):
         """
         It calculates the measured values (affected by uncertainty) at the measurement points
         which distribution should be used? if gaussian --> stddev must be divided by 3
@@ -177,23 +177,27 @@ class MeasurementSet:
         @param seed: - normal: use normal distribution (-->std_dev are divided by 3)
                      - uniform: use normal distribution
         """
-        np.random.seed(seed)
-        if dist == "normal":
-            err_pu = np.random.normal(0, 1, len(self.measurements))
-            for index, measurement in enumerate(self.measurements):
-                if measurement.meas_type not in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
-                    zdev = measurement.meas_value_ideal * measurement.std_dev
-                elif measurement.meas_type in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
-                    zdev = measurement.std_dev
-                measurement.meas_value = measurement.meas_value_ideal + zdev * err_pu[index]
-        elif dist == "uniform":
-            err_pu = np.random.uniform(-1, 1, len(self.measurements))
-            for index, measurement in enumerate(self.measurements):
-                if measurement.meas_type not in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
-                    zdev = (measurement.meas_value_ideal * measurement.std_dev)
-                elif measurement.meas_type in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
-                    zdev = measurement.std_dev
-                measurement.meas_value = measurement.meas_value_ideal + np.multiply(3 * zdev, err_pu[index])
+        if type == "simulation":
+            np.random.seed(seed)
+            if dist == "normal":
+                err_pu = np.random.normal(0, 0, len(self.measurements))
+                for index, measurement in enumerate(self.measurements):
+                    if measurement.meas_type not in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
+                        zdev = measurement.meas_value_ideal * measurement.std_dev
+                    elif measurement.meas_type in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
+                        zdev = measurement.std_dev
+                    measurement.meas_value = measurement.meas_value_ideal + zdev * err_pu[index]
+            elif dist == "uniform":
+                err_pu = np.random.uniform(-1, 1, len(self.measurements))
+                for index, measurement in enumerate(self.measurements):
+                    if measurement.meas_type not in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
+                        zdev = (measurement.meas_value_ideal * measurement.std_dev)
+                    elif measurement.meas_type in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
+                        zdev = measurement.std_dev
+                    measurement.meas_value = measurement.meas_value_ideal + np.multiply(3 * zdev, err_pu[index])
+        elif type == "field":
+            for measurement in self.measurements:
+                measurement.meas_value = measurement.meas_value_ideal
 
     def meas_creation_test(self, err_pu):
         """
