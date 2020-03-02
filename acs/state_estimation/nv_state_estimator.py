@@ -146,7 +146,7 @@ def DsseTrad(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_matr
         # G is the gain matrix, that will have to be inverted at each iteration
         G = np.inner(H.transpose(), WH.transpose())
         # inversion of G
-        Ginv = np.linalg.inv(G)
+        Ginv = np.linalg.pinv(G)
         # Delta includes the updates of the states for the current Newton Rapson iteration
         Delta_State = np.inner(Ginv, g)
         # state is updated
@@ -200,7 +200,7 @@ def DssePmu(nodes_num, measurements, Gmatrix, Bmatrix):
     H = np.concatenate((H2, H3, H4, H5, H7, H8, H9, H10), axis=0)
     WH = np.inner(W, H.transpose())
     G = np.inner(H.transpose(), WH.transpose())
-    Ginv = np.linalg.inv(G)
+    Ginv = np.linalg.pinv(G)
 
     # get array which contains the index of measurements type MeasType.Sinj_real, MeasType.Sinj_imag in the array measurements.measurements
     pidx = measurements.getIndexOfMeasurements(type=MeasType.Sinj_real)
@@ -342,7 +342,7 @@ def DsseMixed(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphase_mat
         WH = np.inner(W, H.transpose())
         G = np.inner(H.transpose(), WH.transpose())
 
-        Ginv = np.linalg.inv(G)
+        Ginv = np.linalg.pinv(G)
         Delta_State = np.inner(Ginv, g)
 
         State = State + Delta_State
@@ -469,7 +469,7 @@ def DsseAllocation(nodes_num, measurements, Gmatrix, Bmatrix, Yabs_matrix, Yphas
         WH = np.inner(W, H.transpose())
         G = np.inner(H.transpose(), WH.transpose())
 
-        Ginv = np.linalg.inv(G)
+        Ginv = np.linalg.pinv(G)
         Delta_State = np.inner(Ginv, g)
         if num_iter == 0:
             Delta_State = np.concatenate((Delta_State,np.zeros((inj_code))),axis=0)
@@ -925,7 +925,7 @@ def convertSbranchMeasIntoCurrents(measurements, V, z, p1br, q1br, p2br, q2br):
         # get values of the measurements pbr_inj and qbr_inj   (affected by uncertainty-->meas_value)
         p_br = measurements.measurements[pbr_index].meas_value
         q_br = measurements.measurements[qbr_index].meas_value
-        # get index of the start node
+        # get index of the end node 
         node_index = measurements.measurements[
             pbr_index].element.end_node.index  # == measurements.measurements[qbr_index].element.start_node.index
         z[pbr_index] = (p_br * V[node_index].real + q_br * V[node_index].imag) / (np.absolute(V[node_index]) ** 2)

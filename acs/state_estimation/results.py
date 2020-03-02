@@ -193,6 +193,22 @@ class Results():
                 voltages[node.topology_node.index] = node.voltage
 
         return voltages
+    
+    def get_branch_powers(self, pu=True):
+        """
+        get branch powers
+        - if pu==True --> branch powers are expressed as per-unit
+        """
+        #branch_powers = np.zeros(len(self.branches), dtype=np.complex_)
+        branch_powers = []
+        if pu == True:
+            for branch in self.branches:
+                branch_powers.append(branch.power_pu)
+        elif pu == False:
+            for branch in self.branches:
+                branch_powers.append(branch.power)
+
+        return branch_powers
 
     def get_Iinj(self, pu=True):
         """
