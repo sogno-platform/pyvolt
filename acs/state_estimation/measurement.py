@@ -64,14 +64,18 @@ class MeasurementSet:
         """
 
         for meas in self.measurements:
+            # only update measurements that are already included in the measurements lists
             if meas.element.uuid == element_uuid and meas.meas_type == meas_type:                                
+                # volt pu conversion assuming that meas_data from device are in volts and single-phase value according to sogno interface
+                # while baseVoltage from CIM in [kV] and three-phase value
                 if not value_in_pu and (meas.meas_type == MeasType.Vpmu_mag or meas.meas_type == MeasType.V_mag):
-                    # pu conversion assuming that meas_data from device in [V] and single-phase value, while baseVoltage from CIM in [kV] and three-phase value
-                    meas_value = meas_data / (meas.element.baseVoltage / np.sqrt(3) * 1000)  
+                    meas_value = meas_data / (meas.element.baseVoltage / np.sqrt(3) * 1000)
+                # power pu conversion assuming that meas_data from device are in watts and single-phase value according to sogno interface
+                # while baseApparent power in [MW] and three-phase value
+                if not value_in_pu and (meas.meas_type == MeasType.S1_real or meas.meas_type == MeasType.S1_imag):    
+                    meas_value = meas_data / (meas.element.base_apparent_power / 3 * 1e6)
                 meas.meas_value = meas_value
-            else:
-                # measurements not already included are neither updated nor added
-                pass
+
 
     def read_measurements_from_file(self, powerflow_results, file_name):
         """
