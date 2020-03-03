@@ -214,7 +214,7 @@ class MeasurementSet:
 
     # measurement.meas_value = measurement.meas_value_ideal + measurement.std_dev*err_pu[index]
 
-    def getMeasurements(self, type):
+    def getMeasurementsOfType(self, type):
         """
         return an array with all measurements of type "type" in the array MeasurementSet.measurements.
         """
@@ -293,6 +293,21 @@ class MeasurementSet:
             meas_real[ipmu_phase_index] = iamp * np.sin(itheta)
 
         return meas_real
+    
+    def getSortedMeasurementSet(self):
+        """
+        Sorts measurements in the order required by the SE algorithm
+        """
+        
+        sortedMeasurementSet = MeasurementSet()
+
+        # Sort measurements  in the order required by the SE algorithm
+        # Required order: Vmag, Pinj, Qinj, P1, Q1, P2, Q2, Imag, Vpmu_mag, Vpmu_phase, Ipmu_mag, Ipmu_phase
+        for type_meas in [MeasType.V_mag, MeasType.Sinj_real, MeasType.Sinj_imag, MeasType.S1_real, MeasType.S1_imag, \
+                         MeasType.S2_real, MeasType.S2_imag, MeasType.I_mag, MeasType.Vpmu_mag, MeasType.Vpmu_phase, MeasType.Ipmu_mag, MeasType.Ipmu_phase]:
+            sortedMeasurementSet.measurements += self.getMeasurementsOfType(type_meas)
+        return sortedMeasurementSet
+
 
     def getStd_Dev(self):
         """

@@ -37,6 +37,8 @@ def DsseCall(system, measurements, solver_type="conventional"):
     Yabs_matrix = np.absolute(system.Ymatrix)
     Yphase_matrix = np.angle(system.Ymatrix)
 
+    # Bring measurements in correct order for SE algorithm
+    measurements = measurements.getSortedMeasurementSet()
 
     # run Estimator.
     if solver_type == "conventional":
