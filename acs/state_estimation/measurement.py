@@ -63,13 +63,17 @@ class MeasurementSet:
         to update meas_value of a specific measurement object in the measurements array
         """
 
+        # only update measurements that are already included in the measurements set
         for meas in self.measurements:
-            # only update measurements that are already included in the measurements lists
-            if meas.element.uuid == element_uuid and meas.meas_type == meas_type:                                
+            # special case for voltage magnitude: SOGNO interface only knows Vpmu_mag while measurement set distincts between Vpmu_mag and V_mag
+            if meas.element.uuid == element_uuid and meas_type == MeasType.Vpmu_mag and (meas.meas_type == MeasType.Vpmu_mag or meas.meas_type == MeasType.V_mag):
                 # volt pu conversion assuming that meas_data from device are in volts and single-phase value according to sogno interface
                 # while baseVoltage from CIM in [kV] and three-phase value
                 if not value_in_pu and (meas.meas_type == MeasType.Vpmu_mag or meas.meas_type == MeasType.V_mag):
                     meas_value = meas_data / (meas.element.baseVoltage / np.sqrt(3) * 1000)
+                meas.meas_value = meas_value
+            # case for other measurements 
+            elif meas.element.uuid == element_uuid and meas.meas_type == meas_type: 
                 # power pu conversion assuming that meas_data from device are in watts and single-phase value according to sogno interface
                 # while baseApparent power in [MW] and three-phase value
                 if not value_in_pu and (meas.meas_type == MeasType.S1_real or meas.meas_type == MeasType.S1_imag):    
