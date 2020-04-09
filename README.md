@@ -1,7 +1,7 @@
 # PyVolt
  
 This package provides algorithms for running powerflow simulations, state estimation and FLISR in Python.
-It uses CIMpy to read CIM data into Python objects: https://git.rwth-aachen.de/acs/core/cim/cimpy
+It uses [CIMpy](https://git.rwth-aachen.de/acs/public/cim/cimpy) to read network data based on the Common Information Model.
 
 ## Installation
 
