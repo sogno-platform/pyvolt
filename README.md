@@ -1,25 +1,24 @@
-# State Estimation Algorithm
-The algorithm is implemented in Python and derived from Marco Pau's original version.  
-This project uses CIMpy to read CIM data into Python objects: https://git.rwth-aachen.de/acs/core/cim/cimpy
+# PyVolt
+ 
+This package provides algorithms for running powerflow simulations, state estimation and FLISR in Python.
+It uses CIMpy to read CIM data into Python objects: https://git.rwth-aachen.de/acs/core/cim/cimpy
 
 ## Installation
 
-Install package requirements
+### User 
+
+Install the pyvolt package with
 
 ```
-pip install -r requirements.txt
+python setup.py install
 ```
 
-Install state estimation package in development mode with (being in the directory of the repository)
+
+### Developer
+
+Install the pyvolt package in development mode with
 
 ```
-python setup.py develop
-```
-
-Besides, install cimpy package in development mode with
-
-```
-cd dependencies/cimpy
 python setup.py develop
 ```
 
