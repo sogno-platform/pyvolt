@@ -40,24 +40,14 @@ def solve(system):
                 H[m][i] = 1
                 H[m + 1][i2] = 1
             elif node_type is BusType.PQ:
-                H[m][i] = - np.real(system.Ymatrix[i][i])
-                H[m][i2] = np.imag(system.Ymatrix[i][i])
-                H[m + 1][i] = - np.imag(system.Ymatrix[i][i])
-                H[m + 1][i2] = - np.real(system.Ymatrix[i][i])
-                idx1 = np.subtract(system.Adjacencies[i], 1)
-                idx2 = idx1 + nodes_num
-                H[m][idx1] = - np.real(system.Ymatrix[i][idx1])
-                H[m][idx2] = np.imag(system.Ymatrix[i][idx1])
-                H[m + 1][idx1] = - np.imag(system.Ymatrix[i][idx1])
-                H[m + 1][idx2] = - np.real(system.Ymatrix[i][idx1])
+                H[m][:nodes_num] = np.real(system.Ymatrix[i])
+                H[m][nodes_num:] = - np.imag(system.Ymatrix[i])
+                H[m+1][:nodes_num] = np.imag(system.Ymatrix[i])
+                H[m+1][nodes_num:] = np.real(system.Ymatrix[i])
             elif node_type is BusType.PV:
                 z[m + 1] = np.real(node.power)
-                H[m][i] = - np.real(system.Ymatrix[i][i])
-                H[m][i2] = np.imag(system.Ymatrix[i][i])
-                idx1 = np.subtract(system.Adjacencies[i], 1)
-                idx2 = idx1 + nodes_num
-                H[m][idx1] = - np.real(system.Ymatrix[i][idx1])
-                H[m][idx2] = np.imag(system.Ymatrix[i][idx1])
+                H[m][:nodes_num] = np.real(system.Ymatrix[i])
+                H[m][nodes_num:] = - np.imag(system.Ymatrix[i])
 
     epsilon = 10 ** (-10)
     #epsilon = 0.01
@@ -86,7 +76,7 @@ def solve(system):
                     h[m + 1] = np.inner(H[m + 1], state)
                 elif node_type is BusType.PV:
                     z[m] = (np.real(node.power_pu) * np.real(V[i]) + 
-                            np.imag(node.power_pu) * np.imag(V[i]))(np.abs(V[i]) ** 2)
+                            np.imag(node.power_pu) * np.imag(V[i])) / (np.abs(V[i]) ** 2)
                     h[m] = np.inner(H[m], state)
                     h[m + 1] = np.abs(V[i])
                     H[m + 1][i] = np.cos(np.angle(V[i]))

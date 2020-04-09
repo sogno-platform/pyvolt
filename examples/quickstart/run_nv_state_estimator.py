@@ -26,7 +26,7 @@ for file in xml_files:
     xml_files_abs.append(os.path.abspath(file))
 
 # read cim files and create new network.Systen object
-res, _ = cimpy.cim_import(xml_files_abs, "cgmes_v2_4_15")
+res, _, _ = cimpy.cim_import(xml_files_abs, "cgmes_v2_4_15")
 system = network.System()
 base_apparent_power = 25  # MW
 system.load_cim_data(res, base_apparent_power)
@@ -40,7 +40,7 @@ V_unc = 0
 I_unc = 0
 Sinj_unc = 0
 S_unc = 0
-Pmu_mag_unc = 1
+Pmu_mag_unc = 0
 Pmu_phase_unc = 0
 
 # Create measurements data structures

@@ -63,13 +63,23 @@ class MeasurementSet:
         to update meas_value of a specific measurement object in the measurements array
         """
 
+        # only update measurements that are already included in the measurements set
         for meas in self.measurements:
-            if meas.element.uuid == element_uuid and meas.meas_type == meas_type:
-                if not value_in_pu:
-                    if meas.meas_type == MeasType.Vpmu_mag:
-                        meas_value = meas_data / (meas.element.baseVoltage * 1000 / np.sqrt(
-                            3))  # TODO - Fix phase-to-phase voltage problem
+            # special case for voltage magnitude: SOGNO interface only knows Vpmu_mag while measurement set distincts between Vpmu_mag and V_mag
+            if meas.element.uuid == element_uuid and meas_type == MeasType.Vpmu_mag and (meas.meas_type == MeasType.Vpmu_mag or meas.meas_type == MeasType.V_mag):
+                # volt pu conversion assuming that meas_data from device are in volts and single-phase value according to sogno interface
+                # while baseVoltage from CIM in [kV] and three-phase value
+                if not value_in_pu and (meas.meas_type == MeasType.Vpmu_mag or meas.meas_type == MeasType.V_mag):
+                    meas_value = meas_data / (meas.element.baseVoltage / np.sqrt(3) * 1000)
                 meas.meas_value = meas_value
+            # case for other measurements 
+            elif meas.element.uuid == element_uuid and meas.meas_type == meas_type: 
+                # power pu conversion assuming that meas_data from device are in watts and single-phase value according to sogno interface
+                # while baseApparent power in [MW] and three-phase value
+                if not value_in_pu and (meas.meas_type == MeasType.S1_real or meas.meas_type == MeasType.S1_imag):    
+                    meas_value = meas_data / (meas.element.base_apparent_power / 3 * 1e6)
+                meas.meas_value = meas_value
+
 
     def read_measurements_from_file(self, powerflow_results, file_name):
         """
@@ -161,7 +171,7 @@ class MeasurementSet:
                     self.create_measurement(element, ElemType.Branch, MeasType.Ipmu_mag, meas_value_ideal_mag, unc_mag)
                     self.create_measurement(element, ElemType.Branch, MeasType.Ipmu_phase, meas_value_ideal_phase, unc_phase)
 
-    def meas_creation(self, dist="normal", seed=None):
+    def meas_creation(self, dist="normal", seed=None, type="simulation"):
         """
         It calculates the measured values (affected by uncertainty) at the measurement points
         which distribution should be used? if gaussian --> stddev must be divided by 3
@@ -171,23 +181,27 @@ class MeasurementSet:
         @param seed: - normal: use normal distribution (-->std_dev are divided by 3)
                      - uniform: use normal distribution
         """
-        np.random.seed(seed)
-        if dist == "normal":
-            err_pu = np.random.normal(0, 1, len(self.measurements))
-            for index, measurement in enumerate(self.measurements):
-                if measurement.meas_type not in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
-                    zdev = measurement.meas_value_ideal * measurement.std_dev
-                elif measurement.meas_type in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
-                    zdev = measurement.std_dev
-                measurement.meas_value = measurement.meas_value_ideal + zdev * err_pu[index]
-        elif dist == "uniform":
-            err_pu = np.random.uniform(-1, 1, len(self.measurements))
-            for index, measurement in enumerate(self.measurements):
-                if measurement.meas_type not in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
-                    zdev = (measurement.meas_value_ideal * measurement.std_dev)
-                elif measurement.meas_type in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
-                    zdev = measurement.std_dev
-                measurement.meas_value = measurement.meas_value_ideal + np.multiply(3 * zdev, err_pu[index])
+        if type == "simulation":
+            np.random.seed(seed)
+            if dist == "normal":
+                err_pu = np.random.normal(0, 0, len(self.measurements))
+                for index, measurement in enumerate(self.measurements):
+                    if measurement.meas_type not in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
+                        zdev = measurement.meas_value_ideal * measurement.std_dev
+                    elif measurement.meas_type in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
+                        zdev = measurement.std_dev
+                    measurement.meas_value = measurement.meas_value_ideal + zdev * err_pu[index]
+            elif dist == "uniform":
+                err_pu = np.random.uniform(-1, 1, len(self.measurements))
+                for index, measurement in enumerate(self.measurements):
+                    if measurement.meas_type not in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
+                        zdev = (measurement.meas_value_ideal * measurement.std_dev)
+                    elif measurement.meas_type in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
+                        zdev = measurement.std_dev
+                    measurement.meas_value = measurement.meas_value_ideal + np.multiply(3 * zdev, err_pu[index])
+        elif type == "field":
+            for measurement in self.measurements:
+                measurement.meas_value = measurement.meas_value_ideal
 
     def meas_creation_test(self, err_pu):
         """
@@ -204,7 +218,7 @@ class MeasurementSet:
 
     # measurement.meas_value = measurement.meas_value_ideal + measurement.std_dev*err_pu[index]
 
-    def getMeasurements(self, type):
+    def getMeasurementsOfType(self, type):
         """
         return an array with all measurements of type "type" in the array MeasurementSet.measurements.
         """
@@ -283,6 +297,21 @@ class MeasurementSet:
             meas_real[ipmu_phase_index] = iamp * np.sin(itheta)
 
         return meas_real
+    
+    def getSortedMeasurementSet(self):
+        """
+        Sorts measurements in the order required by the SE algorithm
+        """
+        
+        sortedMeasurementSet = MeasurementSet()
+
+        # Sort measurements  in the order required by the SE algorithm
+        # Required order: Vmag, Pinj, Qinj, P1, Q1, P2, Q2, Imag, Vpmu_mag, Vpmu_phase, Ipmu_mag, Ipmu_phase
+        for type_meas in [MeasType.V_mag, MeasType.Sinj_real, MeasType.Sinj_imag, MeasType.S1_real, MeasType.S1_imag, \
+                         MeasType.S2_real, MeasType.S2_imag, MeasType.I_mag, MeasType.Vpmu_mag, MeasType.Vpmu_phase, MeasType.Ipmu_mag, MeasType.Ipmu_phase]:
+            sortedMeasurementSet.measurements += self.getMeasurementsOfType(type_meas)
+        return sortedMeasurementSet
+
 
     def getStd_Dev(self):
         """

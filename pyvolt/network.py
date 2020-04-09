@@ -95,7 +95,6 @@ class System():
         self.branches = []
         self.breakers = []
         self.Ymatrix = np.zeros([], dtype=np.complex)
-        self.Adjacencies = np.array([])
 
     def get_node_by_uuid(self, node_uuid):
         for node in self.nodes:
@@ -179,8 +178,8 @@ class System():
                     break
             for obj_SvPowerFlow in list_SvPowerFlow:
                 if obj_SvPowerFlow.Terminal.TopologicalNode.mRID == uuid_TPNode:
-                    pInj += obj_SvPowerFlow.p
-                    qInj += obj_SvPowerFlow.q           
+                    pInj -= obj_SvPowerFlow.p
+                    qInj -= obj_SvPowerFlow.q           
             for obj_Terminal in list_Terminals_ES:
                 if obj_Terminal.TopologicalNode.mRID == uuid_TPNode:
                     for obj_EnergySource in list_EnergySources:
@@ -191,8 +190,8 @@ class System():
                 if obj_Terminal.TopologicalNode.mRID == uuid_TPNode:
                     for obj_EnergyConsumer in list_EnergyConsumer:
                         if obj_EnergyConsumer.mRID == obj_Terminal.ConductingEquipment.mRID:
-                            pInj += obj_EnergyConsumer.p
-                            qInj += obj_EnergyConsumer.q
+                            pInj -= obj_EnergyConsumer.p
+                            qInj -= obj_EnergyConsumer.q
             
             base_voltage = TPNode.BaseVoltage.nominalVoltage
             self.nodes.append(Node(name=name, uuid=uuid_TPNode, base_voltage=base_voltage, v_mag=vmag,
@@ -335,16 +334,16 @@ class System():
         self.reindex_nodes_list()
         nodes_num = self.get_nodes_num()
         self.Ymatrix = np.zeros((nodes_num, nodes_num), dtype=np.complex)
-        self.Adjacencies = [[] for _ in range(nodes_num)]
+        self.Bmatrix = np.zeros((nodes_num, nodes_num), dtype=np.complex)
         for branch in self.branches:
             fr = branch.start_node.index
             to = branch.end_node.index
             self.Ymatrix[fr][to] -= branch.y_pu
             self.Ymatrix[to][fr] -= branch.y_pu
-            self.Ymatrix[fr][fr] += branch.y_pu
-            self.Ymatrix[to][to] += branch.y_pu
-            self.Adjacencies[fr].append(to + 1)  # to + 1???
-            self.Adjacencies[to].append(fr + 1)  # fr + 1???
+            self.Ymatrix[fr][fr] += branch.y_pu  # + branch.b_pu
+            self.Ymatrix[to][to] += branch.y_pu  # + branch.b_pu
+            # self.Bmatrix[fr][to] += branch.b_pu
+            # self.Bmatrix[to][fr] += branch.b_pu
     
     #Testing functions
     def print_nodes_names(self):

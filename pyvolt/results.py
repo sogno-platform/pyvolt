@@ -44,7 +44,7 @@ class Results():
         self.nodes = []
         self.branches = []
         self.Ymatrix = system.Ymatrix
-        self.Adjacencies = system.Adjacencies
+        self.Bmatrix = system.Bmatrix
         for node in system.nodes:
             if node.ideal_connected_with == '':
                 self.nodes.append(ResultsNode(topo_node=node))
@@ -102,16 +102,18 @@ class Results():
     def calculateI(self):
         """
         To calculate the branch currents
+        Note: branch current flowing into start node coming from end node
         """
         for branch in self.branches:
             fr = branch.topology_branch.start_node.index
             to = branch.topology_branch.end_node.index
-            branch.current_pu = - (self.nodes[fr].voltage_pu - self.nodes[to].voltage_pu) * self.Ymatrix[fr][to]
+            branch.current_pu = - (self.nodes[fr].voltage_pu - self.nodes[to].voltage_pu) * self.Ymatrix[fr][to] + 1j*self.Bmatrix[fr][to] * self.nodes[fr].voltage_pu
             branch.current = branch.current_pu * branch.topology_branch.base_current
 
     def calculateIinj(self):
         """
-        calculate current injections at a node
+        Calculate current injections at a node
+        Note: node current flowing into the node
         """
         for node in self.nodes:
             to = complex(0, 0)  # sum of the currents flowing to the node
@@ -121,7 +123,7 @@ class Results():
                     fr = fr + branch.current_pu
                 if node.topology_node.index == branch.topology_branch.end_node.index:
                     to = to + branch.current_pu
-            node.current_pu = to - fr
+            node.current_pu = fr - to
             node.current = node.current_pu * node.topology_node.base_current
 
     def calculateSinj(self):
@@ -152,7 +154,7 @@ class Results():
             for node in self.nodes:
                 if branch_index == node.topology_node.index:
                     branch.power2_pu = -node.voltage_pu * (np.conj(branch.current_pu))
-                    branch.power = branch.power2_pu * branch.topology_branch.base_apparent_power
+                    branch.power2 = branch.power2_pu * branch.topology_branch.base_apparent_power
 
     def get_node(self, index=None, uuid=None):
         """
@@ -191,6 +193,22 @@ class Results():
                 voltages[node.topology_node.index] = node.voltage
 
         return voltages
+    
+    def get_branch_powers(self, pu=True):
+        """
+        get branch powers
+        - if pu==True --> branch powers are expressed as per-unit
+        """
+        #branch_powers = np.zeros(len(self.branches), dtype=np.complex_)
+        branch_powers = []
+        if pu == True:
+            for branch in self.branches:
+                branch_powers.append(branch.power_pu)
+        elif pu == False:
+            for branch in self.branches:
+                branch_powers.append(branch.power)
+
+        return branch_powers
 
     def get_Iinj(self, pu=True):
         """
