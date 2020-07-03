@@ -9,7 +9,7 @@ class ResultsNode():
         self.voltage = complex(0, 0)
         self.current = complex(0, 0)
         self.power = complex(0, 0)
-        self.voltage_pu = complex(0, 0)
+        self.voltage_pu = complex(1, 0)
         self.current_pu = complex(0, 0)
         self.power_pu = complex(0, 0)
 
