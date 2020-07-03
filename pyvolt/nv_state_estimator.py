@@ -666,7 +666,7 @@ def calculateJacobiCurrentPmu(measurements, nodes_num, Gmatrix, Bmatrix, inj_cod
     # get all measurements of type MeasType.Ipmu_mag
     Ipmu_mag_meas = measurements.getMeasurementsOfType(type=MeasType.Ipmu_mag)
     # get all measurements of type MeasType.Vpmu_phase
-    Ipmu_phase_meas = measurements.getMeasurementsOfType(type=MeasType.Vpmu_phase)
+    Ipmu_phase_meas = measurements.getMeasurementsOfType(type=MeasType.Ipmu_phase)
 
     if type == 1:
         H9 = np.zeros((len(Ipmu_mag_meas), 2 * nodes_num + inj_code))
