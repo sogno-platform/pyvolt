@@ -65,20 +65,40 @@ class MeasurementSet:
 
         # only update measurements that are already included in the measurements set
         for meas in self.measurements:
-            # special case for voltage magnitude: SOGNO interface only knows Vpmu_mag while measurement set distincts between Vpmu_mag and V_mag
-            if meas.element.uuid == element_uuid and meas_type == MeasType.Vpmu_mag and (meas.meas_type == MeasType.Vpmu_mag or meas.meas_type == MeasType.V_mag):
-                # volt pu conversion assuming that meas_data from device are in volts and single-phase value according to sogno interface
-                # while baseVoltage from CIM in [kV] and three-phase value
-                if not value_in_pu and (meas.meas_type == MeasType.Vpmu_mag or meas.meas_type == MeasType.V_mag):
-                    meas_value = meas_data / (meas.element.baseVoltage / np.sqrt(3) * 1000)
-                meas.meas_value = meas_value
-            # case for other measurements 
-            elif meas.element.uuid == element_uuid and meas.meas_type == meas_type: 
-                # power pu conversion assuming that meas_data from device are in watts and single-phase value according to sogno interface
-                # while baseApparent power in [MW] and three-phase value
-                if not value_in_pu and (meas.meas_type == MeasType.S1_real or meas.meas_type == MeasType.S1_imag):    
-                    meas_value = meas_data / (meas.element.base_apparent_power / 3 * 1e6)
-                meas.meas_value = meas_value
+            if meas.element.uuid == element_uuid:
+                # special case for voltage magnitude: SOGNO interface only knows Vpmu_mag while measurement set distincts between Vpmu_mag and V_mag
+                if meas_type == MeasType.Vpmu_mag and (meas.meas_type == MeasType.Vpmu_mag or meas.meas_type == MeasType.V_mag):
+                    # volt pu conversion assuming that meas_data from device are in volts and single-phase value according to sogno interface
+                    # while baseVoltage from CIM in [kV] and three-phase value
+                    if not value_in_pu:
+                        meas_value_pu = meas_data / (meas.element.baseVoltage / np.sqrt(3) * 1000)
+                    else:
+                        meas_value_pu = meas_data
+                    print("Updating measurement value for {} of type {} from {} to {}".format(meas.element.uuid, str(meas.meas_type), meas.meas_value, meas_value_pu))                    
+                    meas.meas_value = meas_value_pu                
+                # special case for voltage magnitude: SOGNO interface only knows Ipmu_mag while measurement set distincts between Ipmu_mag and I_mag
+                elif meas_type == MeasType.Ipmu_mag and (meas.meas_type == MeasType.Ipmu_mag or meas.meas_type == MeasType.I_mag):
+                    # current pu conversion assuming that meas_data from device are in A and single-phase value according to sogno interface
+                    # while base_current in [kA]
+                    if not value_in_pu:
+                        meas_value_pu = meas_data / (meas.element.base_current * 1000)
+                    else:
+                        meas_value_pu = meas_data
+                    print("Updating measurement value for {} of type {} from {} to {}".format(meas.element.uuid, str(meas.meas_type), meas.meas_value, meas_value_pu))
+                    meas.meas_value = meas_value_pu
+                # case for other measurements 
+                elif (meas_type == meas.meas_type and (meas_type == MeasType.S1_real or meas_type == MeasType.S1_imag)): 
+                    # power pu conversion assuming that meas_data from device are in watts and single-phase value according to sogno interface
+                    # while baseApparent power in [MW] and three-phase value
+                    if not value_in_pu:    
+                        meas_value_pu = meas_data / (meas.element.base_apparent_power / 3 * 1e6)
+                    else:
+                        meas_value_pu = meas_data
+                    print("Updating measurement value for {} of type {} from {} to {}".format(meas.element.uuid, str(meas.meas_type), meas.meas_value, meas_value_pu))
+                    meas.meas_value = meas_value_pu
+                elif (meas_type == meas.meas_type and (meas_type == MeasType.Vpmu_phase or meas_type == MeasType.Ipmu_phase)):
+                    print("Updating measurement value for {} of type {} from {} to {}".format(meas.element.uuid, str(meas.meas_type), meas.meas_value, meas_data))
+                    meas.meas_value = meas_data
 
 
     def read_measurements_from_file(self, powerflow_results, file_name):
