@@ -9,18 +9,22 @@ from pathlib import Path
 
 logging.basicConfig(filename='CIGRE.log', level=logging.INFO, filemode='w')
 
-cim_dir = Path('.') / 'sample_data' / 'CIGRE-MV-NoTap'
-cim_files = cim_dir.glob('*.xml')
-cim_list = []
-for file in cim_files:
-    cim_list.append(str(file.absolute()))
-print(cim_list)
+this_file_folder = Path(__file__).resolve().parent
+xml_path = this_file_folder / "sample_data" / "CIGRE-MV-NoTap"
+xml_files = [xml_path / "Rootnet_FULL_NE_06J16h_DI.xml",
+             xml_path / "Rootnet_FULL_NE_06J16h_EQ.xml",
+             xml_path / "Rootnet_FULL_NE_06J16h_SV.xml",
+             xml_path / "Rootnet_FULL_NE_06J16h_TP.xml"]
+
+xml_files_abs = []
+for file in xml_files:
+    xml_files_abs.append(os.path.abspath(file))
 
 # read cim files and create new network.Systen object
-res, _, _ = cimpy.cim_import(cim_list, "cgmes_v2_4_15")
+res = cimpy.cim_import(xml_files_abs, "cgmes_v2_4_15")
 system = network.System()
 base_apparent_power = 25  # MW
-system.load_cim_data(res, base_apparent_power)
+system.load_cim_data(res['topology'], base_apparent_power)
 
 # Execute power flow analysis
 results_pf, num_iter = nv_powerflow.solve(system)
