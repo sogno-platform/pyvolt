@@ -12,13 +12,10 @@ from pyvolt import results
 import cimpy
 import os
 
-this_file_path = Path(__file__)
-this_file_path.parent
-#os.chdir(os.path.dirname(__file__))
-
 logging.basicConfig(filename='CIGRE.log', level=logging.INFO, filemode='w')
 
-xml_path = this_file_path.parent / "sample_data" / "CIGRE-MV-NoTap"
+this_file_folder = Path(__file__).resolve().parent
+xml_path = this_file_folder / "sample_data" / "CIGRE-MV-NoTap"
 xml_files = [xml_path / "Rootnet_FULL_NE_06J16h_DI.xml",
              xml_path / "Rootnet_FULL_NE_06J16h_EQ.xml",
              xml_path / "Rootnet_FULL_NE_06J16h_SV.xml",
@@ -32,7 +29,7 @@ for file in xml_files:
 res = cimpy.cim_import(xml_files_abs, "cgmes_v2_4_15")
 system = network.System()
 base_apparent_power = 25  # MW
-system.load_cim_data(res, base_apparent_power)
+system.load_cim_data(res['topology'], base_apparent_power)
 
 # Execute power flow analysis
 results_pf, num_iter_cim = nv_powerflow.solve(system)
