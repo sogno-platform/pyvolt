@@ -1,0 +1,45 @@
+I, Jan Dinkelbach hereby sign-off-by all of my past commits to this repo subject to the Developer Certificate of Origin (DCO), Version 1.1. In the past I have used emails: jdinkelbach@eonerc.rwth-aachen.de
+
+d6def9f35d61bcead356c35aa40f2e5a5c724d43 change pf and se example to new cimpy data structure
+f08da0f2c04ad2a38ba92d3c6dd9e9caf4c57591 fix path and cim import in se example
+db6095ba2b0a45d5ac9c8db185c70cd9cd78ab8a include processing of measurements of further types
+09adf8e9b0f29b9e1aea2b358e0540adfc0444e6 fix retrieval of Ipmu_phase measurements
+e413ae2f2bfa8e69c606d936a0b7bb56b73d1e79 init voltage results with 1pu
+5dc2cb64ba6b0832ebc3358b36145703f53f25ed Update README.md
+b117d4bbcfb997fcc3eb7dc0e3dc7dec9f40cff4 Update README.md
+72c3de9f70c7eee535d3c54adf5d579fa9ababca Update README.md
+c6f7e7a221e4110e39929b57020fa5e3cafb2b8c Assign voltage messages in sogno interface either to Vpmu_mag or to V_mag
+e6281d68d55bd1f00709d39b815cd7ded26bc6ce Minor dimensionality bugfixes for all types of SE algorithms
+390cc1088edd6532efa688c88b583ea563b2c273 Sort measurement set to provide correct order for SE algorithm, closes #12
+d28762e3f3ca08b23bf4ea33233c81c05574a1e4 add workaround for generating measurements from CIM directly
+4ba7642c313a673afc786960661ec472e40482ff improve per unit conversion in update measurements
+e805642b3481e4c5e67079cf3f30c5c544f9b90f switch to np.linalg.pinv for more stable results
+c722522d4e009f0a9638d8843052a97c4c19c398 improve update measurement implementation
+6cd55e631cc119686a2bd71ccaa45f61cf5eb584 fix cim power read in according to new sign convention (pos=generation, neg=consumption)
+1372d43805b7cc7daca31508cd14da75f7f71179 fix bug in branch power calculation of results
+4ae791291e269a7940e165c2a31cd8de3132e349 update submodule cimpy
+3122fda5f5aa0ee0f63c0c4032b15000e409233f update submodule cimpy
+9d9094035f6a8e5beb971873d8d96a52242c68da update submodule cimpy
+11648810fbb0ae0b1bacb5b426ea448799890a08 update file paths
+3ae34865d801a8ea9ea1f1cceb1f16a471e18a81 update cimpy
+eb03546fae2f9ab4ccae1941954195eeccb216a0 rename cimgen_v2_4_15 to cgmes_v2_4_15
+e072fcb153cbe350970d2ed03c7bbee9711f599e update cimpy
+f547c1d40d768cc394338fc0a45d9220ddb2f860 update to new cimpy implementation
+6255b3b703e8b4d91dfa15d5ac7f84d028e8da82 Removed manual cimpy as submodule
+19b5ecbc00d2c638675daef2533d30acc311fdd5 started to adapt for usage of new cimpy implementation
+83865f08ff09a0da7f099b3b801dd7be9935538c renaming meas_value to meas_value_ideal and mval to meas_value
+9923b0e9bdb74b62dd7d60a6ab98c29218c54762 refactoring to MeasurementSet
+707f91e4712585506ef6dfa162980ecbd5465b2c reformat code
+9b826343b698a652d15ed61349b1545bc3f87bee use mval instead of meas_value for measurement update
+322ec7d2218941aa78097499a1d6413a10e8739a fix base current calculation
+f5666bcce095762ebb54e3c86b0e9b5f3ba946b5 add updating and merging of measurement sets
+e18a540972c4bfcfb40edd67565c473d38441bff fix dimension of solution vector in powerflow solver
+55113178b596afc530e05f341bdddd1677d4705c improve results output of powerflow solver
+7857e2768488fb630c7e8d7bd6a6fc8bf4c554f7 improve commenting
+e050559a00b59f635b82e31ba32e49e2d1a372d9 refactoring varnames
+50a3693bcf85f9b0cd6bbb90a735c5615f86e7e0 fix file references
+d8370f97ec597e847f3cf4a2a9510550b7de239d update paths of cim and reference files
+b989e7058867137588367e3075b189facd05f21a update setup
+6161a2249d7e5e0c246f56b83663ffda1a2f5fba moved python version of marco pau's original implementation to separate branch
+4b645f0029b2a5a09f0e630a20eb46e302c19a54 minor changes to plots
+098d668715ed15aebaf1196b8b65b74af5db1cc3 restructure files and refactoring of state estimator and dpsim comparison
