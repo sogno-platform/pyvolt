@@ -43,3 +43,11 @@ b989e7058867137588367e3075b189facd05f21a update setup
 6161a2249d7e5e0c246f56b83663ffda1a2f5fba moved python version of marco pau's original implementation to separate branch
 4b645f0029b2a5a09f0e630a20eb46e302c19a54 minor changes to plots
 098d668715ed15aebaf1196b8b65b74af5db1cc3 restructure files and refactoring of state estimator and dpsim comparison
+
+I, Martin Moraga hereby sign-off-by all of my past commits to this repo subject to the Developer Certificate of Origin (DCO), Version 1.1. In the past I have used emails: martin.moraga.91@gmail.com
+
+0ef949ad343da4dd38f29d8a15a0052ec91ffc09 improve interfaces
+fb599444177a617313fdd1beec5877b13d9f180f improve vilas_node_interface.py and sogno_interface.py
+86b63154aa511cbd32148f6aa85a921100eba908 updated examples
+4b480929b8a869532a2961b71ac50e2502841887 added new examples
+
