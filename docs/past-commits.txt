@@ -51,3 +51,24 @@ fb599444177a617313fdd1beec5877b13d9f180f improve vilas_node_interface.py and sog
 86b63154aa511cbd32148f6aa85a921100eba908 updated examples
 4b480929b8a869532a2961b71ac50e2502841887 added new examples
 
+I, Marco Pau hereby sign-off-by all of my past commits to this repo subject to the Developer Certificate of Origin (DCO), Version 1.1. In the past I have used emails: mpau@eonerc.rwth-aachen.de, admin-mpa@LAPTOP-ACS049.eonerc.rwth-aachen.de
+
+18f814406d021da7807395ea8b769b1775a23492 Corrected some code errors
+ddb8c423f399746af54091be6738e799d3596eda Modifications for the DsseAllocation method
+2bd321eb5a73ed3b01d29acb7f24fc87a83a15f2 Changed name of variable add_var with inj_code
+f2f1f822d2a9c353758387e5672e1d96eca8484a Update README.md
+test modification
+ec0a9860035d7e9359817cde3b13a585a1d83a3f Corrections following DsseAllocation method introduction
+e5a45c3e3877c960419a511cb085a1ed13aba14a Added DsseAllocation method
+d0745e126bda8174ae9e8e90ffcc14c94cf09ba5 Simplified the calculation of the Jacobian for power injection measurements to remove all the dependencies from Adjacencies variable
+881213b1a082eac44d87027a38021b8b4dc9fbc2 Correction of Ymatrix with system.Ymatrix in power flow code
+a0b978e631093471a32c8a927bb5594c6b938ffb Changed numpy with np in power flow code
+feeffa7d7ccd68c6ffcc380f719f74e432b14119 Simplified calculation of Jacobian for PQ and PV nodes in power flow
+d1ea001154ea32ee2725e17f6e35370a20c2b423 Removed calculation of Adjacencies for the grid
+720b7f6a45a50b836281bec0ce3552aef492c583 Changed signs into current injection results calculation to have the generation with positive values and the load consumption with negative values
+ab351e63144ba1727800ebb7d308ea4e82572d0c Changed signs into function for Jacobian with respect to power injection measurements to consider generations as positive and loads as negative
+bbcaebe54025b1a56fd1d830178ab7d6d6e5f911 Changed Jacobian signs to have generated power with positive values and consumed power with negative values
+a0a7e5821d2abca8456b125721e036c1b5b5135b Added division sign in measurement function for PV nodes
+ea61b40f682f74dd63df561ce74c2aa9a305913f Added branch susceptance matrix in the Results class
+6b1e71167e3919356956d3a3320c99f1945150e5 Added branch susceptance in branch current calculation
+c8d4eaa839acc1f691cdb871eccc0cd25672bc6b Added branch susceptance terms in admittance matrix calculation
