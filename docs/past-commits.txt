@@ -72,3 +72,35 @@ a0a7e5821d2abca8456b125721e036c1b5b5135b Added division sign in measurement func
 ea61b40f682f74dd63df561ce74c2aa9a305913f Added branch susceptance matrix in the Results class
 6b1e71167e3919356956d3a3320c99f1945150e5 Added branch susceptance in branch current calculation
 c8d4eaa839acc1f691cdb871eccc0cd25672bc6b Added branch susceptance terms in admittance matrix calculation
+
+I, Markus Mirz hereby sign-off-by all of my past commits to this repo subject to the Developer Certificate of Origin (DCO), Version 1.1. In the past I have used emails: mmirz@eonerc.rwth-aachen.de, 16180422+m-mirz@users.noreply.github.com
+
+97c31eb3ee0f9099059e9baf35ac28fdf682fbf3 Update LICENSE
+f52e43dfb4a2dfcac6d29a5fabbc29c72627a511 update gitignore
+06057ef801a2b17c06061cd67da08fc8c8980719 remove obsolete gitmodules
+a63d335ab89d7ab48971e553a81c752c4b0e94ba remove cimpy submodule
+11ab48f67f5fe4cfbe6e7d31d7377f48cd255ac7 Add LICENSE
+b5d21a85d9ac87280ff78c0982bbe93b6a718100 update example for new cimpy version
+a77d83ea8c3f532dff5e1dbea0deb11f1c66a2b5 use pathlib to specify cim files
+f8c10051c5a205bcab9c9e74c2b20afa191911b5 rename package
+f38c127af2892144e46a9fe2a3ee6a2f882fae56 adding powerflow results structure
+e56ea194fccbe1e52f9b6517dd5004ae5aed5539 remove redundant file
+8c60ba10d28a9f691affeb29ab61e8fa7e4be95e use functions for current and power calc
+b89cdb18c5f1872513024f8b41e28813f1ea0828 Update README.md
+856bc550814eec2e09a63e6363bcdc90a7412701 Update README.md
+b144b1ccd8f35b8ffcbc897b707744db1c8a5ab2 minor restructuring
+7be81b5f9b21f5a0e8ebaab79dfdf5e008c7650e add python load function to network
+67d5a70468916517d26620be8075366c431d7c04 update init package
+76dc9bd6db7490fdaacc85379c78856e26ad7ee7 added package to acs namespace
+de27f84e3fe4ddc978d36f0f6c625ff2d5637c32 update setup
+6055c5f63fa3d2d7affaa03755b673eface01583 remove complex workarounds
+3db666e1afb166d636f395ef1cf34dd207264dc0 restructuring powerflow
+78224a81770a03e996cb32c8be6e4aaec8a58f2d restructuring
+5cb610b20a5d6e16f4c4cefd9f91def523c32eb4 add node voltage powerflow and estimator
+f62b5eb37378a0242ed33410868ff1c39f3aec9c remove unecessary code from pf test
+e44a657035803122292cd40b371bf2d507b11a2d add powerflow test
+3135af6f0427a6c6669fcf141dbb64d600f2075e clean up powerflow module
+8b89086945d600103538e072ee41420928a6b4e6 update package name
+148a631f3a11fc69346869673a993a6b4308a9b3 restructure package
+8c8f8f1b6e00a7cff79a90426d0e79c5b47b52e0 initial commit of single phase estimator
+23ffd6faafeb62909fda712c1f111e7fd1eded3d Add README.md
