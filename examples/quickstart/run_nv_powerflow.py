@@ -4,7 +4,6 @@ from pyvolt import nv_powerflow
 from pyvolt import results
 import cimpy
 import os
-from villas.dataprocessing.readtools import read_timeseries_dpsim
 from pathlib import Path
 
 logging.basicConfig(filename='CIGRE.log', level=logging.INFO, filemode='w')

@@ -1,1 +1,4 @@
-villas-dataprocessing>=0.2
+matplotlib
+numpy
+pandas
+cimpy
