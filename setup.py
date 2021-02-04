@@ -11,6 +11,7 @@ setup(name='pyvolt',
       install_requires = [
         'matplotlib',
         'numpy',
+        'pandas',
         'cimpy'        
       ]
 )

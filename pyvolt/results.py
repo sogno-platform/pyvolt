@@ -1,7 +1,6 @@
 import cmath
 import numpy as np
-from villas.dataprocessing.readtools import read_timeseries_dpsim
-
+import pandas as pd
 
 class ResultsNode():
     def __init__(self, topo_node):
@@ -38,6 +37,14 @@ class ResultsBranch():
             str = str + key + '={}\n'.format(attributes[key])
         return str
 
+class TimeSeries:
+    """ A TimeSeries object always consists of timestamps and datapoints.
+    """
+    def __init__(self, name, time, values, label=""):
+        self.time = np.array(time)
+        self.values = np.array(values)
+        self.name = name
+        self.label = name
 
 class Results():
     def __init__(self, system):
@@ -60,10 +67,77 @@ class Results():
                 return node
         
         return None
-    
-    def read_data_dpsim(self, file_name, pu=False):
+
+    def read_timeseries_csv(filename, timeseries_names=None, print_status=True):
+        """Reads complex time series data from a CSV file. Real and
+        imaginary part are stored in one complex variable.
+        :param filename: name of the csv file that has the data
+        :param timeseries_names: column name which should be read
+        :return: list of Timeseries objects
         """
-        read the voltages from a dpsim input file
+        pd_df = pd.read_csv(filename)
+        timeseries_list = {}
+        cmpl_result_columns = []
+        real_result_columns = []
+
+        if timeseries_names is None:
+            # No column names specified, thus read in all and strip off spaces
+            pd_df.rename(columns=lambda x: x.strip(), inplace=True)
+            column_names = list(pd_df.columns.values)
+
+            # Remove timestamps column name and store separately
+            column_names.remove('time')
+            timestamps = pd_df.iloc[:, 0]
+
+            # Find real and complex variable names
+            suffixes = [ ('_re', '_im'), ('.re', '.im'), ('.real', '.imag') ]
+            for column in column_names:
+                is_complex = False
+                for suffix in suffixes:
+                    real_suffix = suffix[0]
+                    imag_suffix = suffix[1]
+
+                    if column.endswith(imag_suffix):
+                        is_complex = True
+                        break # Ignore imag columns
+
+                    if column.endswith(real_suffix):
+                        is_complex = True
+                        column_base = column.replace(real_suffix, '')
+
+                        if column_base + imag_suffix not in column_names:
+                            continue
+
+                        cmpl_result_columns.append(column_base)
+                        timeseries_list[column_base] = TimeSeries(column_base, timestamps,
+                            np.vectorize(complex)(
+                                pd_df[column_base + real_suffix],
+                                pd_df[column_base + imag_suffix]
+                            )
+                        )
+                        break
+
+                if is_complex:
+                    continue
+
+                real_result_columns.append(column)
+                timeseries_list[column] = TimeSeries(column, timestamps, pd_df[column])
+
+        else:
+            # Read in specified time series
+            print('cannot read specified columns yet')
+
+        if print_status :
+            print('column number: ' + str(len(timeseries_list)))
+            print('results length: ' + str(len(timestamps)))
+            print('real column names: ' + str(real_result_columns))
+            print('complex column names: ' + str(cmpl_result_columns))
+
+        return timeseries_list
+    
+    def read_data(self, file_name, pu=False):
+        """
+        read the voltages from a CSV input file
 
         @param file_name
         @param pu: - True if voltages are expressed in per unit system

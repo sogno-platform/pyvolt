@@ -4,7 +4,6 @@ from pyvolt import nv_powerflow
 from pyvolt import results
 import cimpy
 import os
-from villas.dataprocessing.readtools import read_timeseries_dpsim
 from pathlib import Path
 
 logging.basicConfig(filename='CIGRE.log', level=logging.INFO, filemode='w')
@@ -16,7 +15,7 @@ for file in cim_files:
     cim_list.append(str(file.absolute()))
 print(cim_list)
 
-# read cim files and create new network.Systen object
+# read cim files and create new network.System object
 res, _, _ = cimpy.cim_import(cim_list, "cgmes_v2_4_15")
 system = network.System()
 base_apparent_power = 25  # MW
