@@ -5,3 +5,4 @@ RUN pip3 install matplotlib numpy pandas cimpy
 # docker build -t pyvolt-dev -f Dockerfile.dev .
 # linux: docker run -ti -v $(pwd):/pyvolt --name pyvolt-dev-1 pyvolt-dev bash
 # windows: docker run -ti -v ${pwd}:/pyvolt --name pyvolt-dev-1 pyvolt-dev bash
+# python3 setup.py develop
