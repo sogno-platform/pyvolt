@@ -1,6 +1,7 @@
 import logging
 from pyvolt import network
 from pyvolt import nv_powerflow
+import numpy
 import cimpy
 import os
 
@@ -41,5 +42,4 @@ voltages_ref = [(1-7.970485900477431e-27j), (0.9521818868802214-0.11692768153747
                 (0.9592141716734833-0.09896267637101246j), (0.8702137462858025-0.15760036065945185j),
                 (0.9239489705253996-0.13105032262255972j)]
 epsilon = 1e-4
-assert ([val-epsilon for val in voltages] <= voltages_ref <= [val+epsilon for val in voltages]), \
-    "Results do not match reference results."
+numpy.testing.assert_array_almost_equal(voltages, voltages_ref), "Results do not match reference results."
