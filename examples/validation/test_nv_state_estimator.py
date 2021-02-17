@@ -9,29 +9,31 @@ from pyvolt import nv_state_estimator
 from pyvolt import measurement
 from pyvolt import results
 
-logging.basicConfig(filename='CIGRE.log', level=logging.INFO, filemode='w')
 
-xml_path = r"..\quickstart\sample_data\CIGRE-MV-NoTap"
-xml_files = [xml_path + r"\Rootnet_FULL_NE_06J16h_DI.xml",
-                 xml_path + r"\Rootnet_FULL_NE_06J16h_EQ.xml",
-                 xml_path + r"\Rootnet_FULL_NE_06J16h_SV.xml",
-                 xml_path + r"\Rootnet_FULL_NE_06J16h_TP.xml"]
+logging.basicConfig(filename='test_nv_state_estimator.log', level=logging.INFO, filemode='w')
 
-xml_files_abs = []
-for file in xml_files:
-    xml_files_abs.append(os.path.abspath(file))
-	
-# read cim files and create new network.Systen object
-res, _ = cimpy.cim_import(xml_files_abs, "cgmes_v2_4_15")
+this_file_folder = os.path.dirname(os.path.realpath(__file__))
+xml_path = os.path.realpath(os.path.join(this_file_folder, "..", "sample_data", "CIGRE-MV-NoTap"))
+xml_files = [os.path.join(xml_path, "Rootnet_FULL_NE_06J16h_DI.xml"),
+             os.path.join(xml_path, "Rootnet_FULL_NE_06J16h_EQ.xml"),
+             os.path.join(xml_path, "Rootnet_FULL_NE_06J16h_SV.xml"),
+             os.path.join(xml_path, "Rootnet_FULL_NE_06J16h_TP.xml")]
+
+# Read cim files and create new network.System object
+res = cimpy.cim_import(xml_files, "cgmes_v2_4_15")
 system = network.System()
 base_apparent_power = 25  # MW
-system.load_cim_data(res, base_apparent_power)
+system.load_cim_data(res['topology'], base_apparent_power)
 
-# read Input-Ergebnisdatei and store it in a results.Results object
-loadflow_results_path = r"..\quickstart\sample_data\CIGRE-MV-NoTap"
-loadflow_results_file = loadflow_results_path + r"\CIGRE-MV-NoTap.csv"
+# Read input result file and store it in a results.Results object
+loadflow_results_file = os.path.realpath(os.path.join(this_file_folder,
+                                                      "..",
+                                                      "sample_data",
+                                                      "CIGRE-MV-NoTap",
+                                                      "CIGRE-MV-NoTap.csv"))
+
 powerflow_results = results.Results(system)
-powerflow_results.read_data_dpsim(loadflow_results_file)
+powerflow_results.read_data(loadflow_results_file)
 
 # --- State Estimation with Ideal Measurements ---
 """ Write here the percent uncertainties of the measurements"""
@@ -56,7 +58,7 @@ measurements_set.meas_creation()
 # Perform state estimation
 state_estimation_results_ideal = nv_state_estimator.DsseCall(system, measurements_set)
 
-# Show numerical comparison
+# Perform numerical comparison
 Vest_ideal = state_estimation_results_ideal.get_voltages(pu=False)
 Vtrue = powerflow_results.get_voltages(pu=False)
 print(Vest_ideal - Vtrue)
@@ -79,7 +81,7 @@ measurements_set.meas_creation()
 # Perform state estimation
 state_estimation_results_real = nv_state_estimator.DsseCall(system, measurements_set)
 
-# Show numerical comparison
+# Perform numerical comparison
 Vest_real = state_estimation_results_real.get_voltages(pu=False)
 print(Vest_real - Vtrue)
 
@@ -93,15 +95,15 @@ ax = plt.subplot()
 nodes_uuid = [system.nodes[elem].uuid for elem in range(len(system.nodes))]
 
 # Reorder and rescale results
-idx_filter = np.argsort([int(uuid[1:]) for uuid in nodes_uuid])[1:]
+idx_filter = np.argsort([int(uuid[1:]) for uuid in nodes_uuid])#[1:]
 nodes_uuid_filtered = [nodes_uuid[idx] for idx in idx_filter]
 Vtrue_filtered = [abs(Vtrue[idx] / 1000) for idx in idx_filter]
 Vest_ideal_filtered = [abs(Vest_ideal[idx] / 1000) for idx in idx_filter]
 Vest_real_filtered = [abs(Vest_real[idx] / 1000) for idx in idx_filter]
 
-plt.plot(Vest_ideal_filtered, linewidth=line_width, linestyle='-', label="state estimator (ideal measurements)")
-plt.plot(Vtrue_filtered, linewidth=line_width, linestyle=':', label="DPsim load flow results")
-plt.plot(Vest_real_filtered, linewidth=line_width, linestyle='-', label="state estimator (non-ideal measurements)")
+plt.plot(Vest_ideal_filtered, linewidth=line_width, linestyle='solid', label="state estimator (ideal measurements)")
+plt.plot(Vtrue_filtered, linewidth=line_width, linestyle='dashed', label="DPsim load flow results")
+plt.plot(Vest_real_filtered, linewidth=line_width, linestyle='dotted', label="state estimator (non-ideal measurements)")
 
 plt.xticks(range(len(system.nodes)), fontsize=fontsize)
 plt.yticks(fontsize=fontsize)

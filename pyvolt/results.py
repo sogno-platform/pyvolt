@@ -68,7 +68,7 @@ class Results():
         
         return None
 
-    def read_timeseries_csv(filename, timeseries_names=None, print_status=True):
+    def read_timeseries_csv(self, filename, timeseries_names=None, print_status=True):
         """Reads complex time series data from a CSV file. Real and
         imaginary part are stored in one complex variable.
         :param filename: name of the csv file that has the data
@@ -142,7 +142,7 @@ class Results():
         @param file_name
         @param pu: - True if voltages are expressed in per unit system
         """
-        loadflow_results = read_timeseries_dpsim(file_name, print_status=False)
+        loadflow_results = self.read_timeseries_csv(file_name, print_status=False)
 
         if pu == True:
             for node in self.nodes:

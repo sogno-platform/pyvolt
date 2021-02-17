@@ -8,25 +8,21 @@ from pyvolt import network
 from pyvolt import nv_powerflow
 from pyvolt import nv_state_estimator
 from pyvolt import measurement
-from pyvolt import results
 import cimpy
 import os
 
-logging.basicConfig(filename='CIGRE.log', level=logging.INFO, filemode='w')
 
-this_file_folder = Path(__file__).resolve().parent
-xml_path = this_file_folder / "sample_data" / "CIGRE-MV-NoTap"
-xml_files = [xml_path / "Rootnet_FULL_NE_06J16h_DI.xml",
-             xml_path / "Rootnet_FULL_NE_06J16h_EQ.xml",
-             xml_path / "Rootnet_FULL_NE_06J16h_SV.xml",
-             xml_path / "Rootnet_FULL_NE_06J16h_TP.xml"]
+logging.basicConfig(filename='run_nv_state_estimator.log', level=logging.INFO, filemode='w')
 
-xml_files_abs = []
-for file in xml_files:
-    xml_files_abs.append(os.path.abspath(file))
+this_file_folder = os.path.dirname(os.path.realpath(__file__))
+xml_path = os.path.realpath(os.path.join(this_file_folder, "..", "sample_data", "CIGRE-MV-NoTap"))
+xml_files = [os.path.join(xml_path, "Rootnet_FULL_NE_06J16h_DI.xml"),
+             os.path.join(xml_path, "Rootnet_FULL_NE_06J16h_EQ.xml"),
+             os.path.join(xml_path, "Rootnet_FULL_NE_06J16h_SV.xml"),
+             os.path.join(xml_path, "Rootnet_FULL_NE_06J16h_TP.xml")]
 
-# read cim files and create new network.Systen object
-res = cimpy.cim_import(xml_files_abs, "cgmes_v2_4_15")
+# Read cim files and create new network.System object
+res = cimpy.cim_import(xml_files, "cgmes_v2_4_15")
 system = network.System()
 base_apparent_power = 25  # MW
 system.load_cim_data(res['topology'], base_apparent_power)
@@ -57,7 +53,7 @@ measurements_set.meas_creation()
 # Perform state estimation
 state_estimation_results = nv_state_estimator.DsseCall(system, measurements_set)
 
-# print node voltages
+# Print node voltages
 print("state_estimation_results.voltages: ")
 for node in state_estimation_results.nodes:
     print('{}={}'.format(node.topology_node.uuid, node.voltage))
