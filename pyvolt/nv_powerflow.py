@@ -4,7 +4,8 @@ from .results import Results
 
 
 def solve(system):
-    """It performs powerflow by using rectangular node voltage state variables and considering the current mismatch function.
+    """It performs powerflow by using rectangular node voltage state variables and considering the current mismatch
+    function.
     
     Solve the non-linear powerflow problem stated by
 
@@ -29,7 +30,7 @@ def solve(system):
     H = np.zeros((2 * nodes_num, 2 * nodes_num))
 
     for node in system.nodes:
-        if node.ideal_connected_with =='':
+        if node.ideal_connected_with == '':
             i = node.index
             m = 2 * i
             i2 = i + nodes_num
@@ -49,7 +50,6 @@ def solve(system):
                 z[m + 1] = np.abs(node.voltage_pu)
 
     epsilon = 10 ** (-10)
-    #epsilon = 0.01
     diff = 5
     V = np.ones(nodes_num) + 1j * np.zeros(nodes_num)
     num_iter = 0
@@ -58,7 +58,7 @@ def solve(system):
 
     while diff > epsilon:
         for node in system.nodes:
-            if node.ideal_connected_with =='':
+            if node.ideal_connected_with == '':
                 i = node.index
                 m = 2 * i
                 i2 = i + nodes_num
@@ -67,10 +67,10 @@ def solve(system):
                     h[m] = np.inner(H[m], state)
                     h[m + 1] = np.inner(H[m + 1], state)
                 elif node_type is BusType.PQ:
-                    z[m] = (np.real(node.power_pu) * np.real(V[i]) + 
-                           np.imag(node.power_pu) * np.imag(V[i])) / (np.abs(V[i]) ** 2)
-                    z[m + 1] = (np.real(node.power_pu) * np.imag(V[i]) - 
-                           np.imag(node.power_pu) * np.real(V[i])) / (np.abs(V[i]) ** 2)
+                    z[m] = (np.real(node.power_pu) * np.real(V[i]) +
+                            np.imag(node.power_pu) * np.imag(V[i])) / (np.abs(V[i]) ** 2)
+                    z[m + 1] = (np.real(node.power_pu) * np.imag(V[i]) -
+                                np.imag(node.power_pu) * np.real(V[i])) / (np.abs(V[i]) ** 2)
                     h[m] = np.inner(H[m], state)
                     h[m + 1] = np.inner(H[m + 1], state)
                 elif node_type is BusType.PV:
