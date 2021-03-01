@@ -2,6 +2,7 @@ import logging
 import numpy as np
 from enum import Enum
 
+
 class BusType(Enum):
     SLACK = 1
     slack = 1
@@ -28,11 +29,11 @@ class Node():
         self.ideal_connected_with = ideal_connected_with
 
     def __str__(self):
-        str = 'class=Node\n'
+        string = 'class=Node\n'
         attributes = self.__dict__
         for key in attributes.keys():
-            str = str + key + '={}\n'.format(attributes[key])
-        return str
+            string = string + key + '={}\n'.format(attributes[key])
+        return string
         
 
 class Branch():
@@ -55,11 +56,11 @@ class Branch():
         self.y_pu = 1 / self.z_pu if (self.z_pu != 0) else float("inf")
 
     def __str__(self):
-        str = 'class=Branch\n'
+        string = 'class=Branch\n'
         attributes = self.__dict__
         for key in attributes.keys():
-            str = str + key + '={}\n'.format(attributes[key])
-        return str
+            string = string + key + '={}\n'.format(attributes[key])
+        return string
 
 
 class Breaker():
@@ -74,18 +75,18 @@ class Breaker():
         self.is_open = is_open
 
     def __str__(self):
-        str = 'class=Breaker\n'
+        string = 'class=Breaker\n'
         attributes = self.__dict__
         for key in attributes.keys():
-            str = str + key + '={}\n'.format(attributes[key])
-        return str
+            string = string + key + '={}\n'.format(attributes[key])
+        return string
 
     def open_breaker(self):
-        self.is_open == True
+        self.is_open = True
         self.to_node.ideal_connected_with = ''
 
     def close_breaker(self):
-        self.is_open == False
+        self.is_open = False
         self.to_node.ideal_connected_with = self.from_node.uuid
 
 
@@ -95,6 +96,7 @@ class System():
         self.branches = []
         self.breakers = []
         self.Ymatrix = np.zeros([], dtype=np.complex)
+        self.Bmatrix = np.zeros([], dtype=np.complex)
 
     def get_node_by_uuid(self, node_uuid):
         for node in self.nodes:
@@ -105,39 +107,39 @@ class System():
 
     def get_node_by_index(self, index):
         """
-        return the node with node.index==index 
+        Return the node with node.index == index
         """
         for node in self.nodes:
-            if (node.index==index) and (node.ideal_connected_with=='') :
+            if (node.index == index) and (node.ideal_connected_with == ''):
                 return node
         
         return None
            
     def get_nodes_num(self):
         """
-        return the number of nodes in the list system.nodes
+        Return the number of nodes in the list system.nodes
         Warning: if any node is ideally connected to another node, 
         the counter is increased only one time
         """
-        nodes_num=0
+        nodes_num = 0
         for node in self.nodes:
-            if node.ideal_connected_with=='':
-                nodes_num+=1
+            if node.ideal_connected_with == '':
+                nodes_num += 1
 
         return nodes_num
 
     def reindex_nodes_list(self):
         """
-        Reenumerate the nodes in system.nodes
+        Re-enumerate the nodes in system.nodes
         If any node is ideally connected to another node, 
         both receive the same index
         """
         index = 0
         remaining_nodes_list = []
         for node in self.nodes:
-            if node.ideal_connected_with=='':
-                node.index=index
-                index+=1
+            if node.ideal_connected_with == '':
+                node.index = index
+                index += 1
             else:
                 remaining_nodes_list.append(node)
 
@@ -157,11 +159,13 @@ class System():
         list_ACLineSegment = [elem for elem in res.values() if elem.__class__.__name__ == "ACLineSegment"]
         list_PowerTransformer = [elem for elem in res.values() if elem.__class__.__name__ == "PowerTransformer"]
         list_Terminals = [elem for elem in res.values() if elem.__class__.__name__ == "Terminal"]
-        list_Terminals_ES = [elem for elem in list_Terminals if elem.ConductingEquipment.__class__.__name__ == "EnergySource"]
-        list_Terminals_EC = [elem for elem in list_Terminals if elem.ConductingEquipment.__class__.__name__ == "EnergyConsumer"]
+        list_Terminals_ES = [elem for elem in list_Terminals if
+                             elem.ConductingEquipment.__class__.__name__ == "EnergySource"]
+        list_Terminals_EC = [elem for elem in list_Terminals if
+                             elem.ConductingEquipment.__class__.__name__ == "EnergyConsumer"]
         list_PowerTransformerEnds = [elem for elem in res.values() if elem.__class__.__name__ == "PowerTransformerEnd"]
         list_Breakers = [elem for elem in res.values() if elem.__class__.__name__ == "Breaker"]
-           
+
         #create nodes
         for TPNode in list_TPNode:
             uuid_TPNode = TPNode.mRID
@@ -255,9 +259,9 @@ class System():
         end_node_uuid = None
         
         for terminal in list_Terminals:
-            if (terminal.ConductingEquipment.mRID != elem_uuid):
+            if terminal.ConductingEquipment.mRID != elem_uuid:
                 continue
-            sequence_number = terminal.sequenceNumber            
+            sequence_number = terminal.sequenceNumber
             if sequence_number == 1:
                 start_node_uuid = terminal.TopologicalNode.mRID
             elif sequence_number == 2:
@@ -265,11 +269,11 @@ class System():
         
         start_node = None
         end_node = None
-        if (start_node_uuid==None):
+        if start_node_uuid is None:
             print('WARNING: It could not find a start node for the element with uuid={}'.format(elem_uuid))
         else:
             start_node = self.get_node_by_uuid(start_node_uuid)
-        if (end_node_uuid==None):
+        if end_node_uuid is None:
             print('WARNING: It could not find a end node for the element with uuid={}'.format(elem_uuid))
         else:
             end_node = self.get_node_by_uuid(end_node_uuid)
@@ -279,18 +283,18 @@ class System():
     def _get_primary_connection(self, list_PowerTransformerEnds, elem_uuid):
         """
         get primaryConnection of the powertransformer with uuid = elem_uuid
-        :param list_PowerTransformerEnd: list of all elements of type PowerTransformerEnd
+        :param list_PowerTransformerEnds: list of all elements of type PowerTransformerEnd
         :param elem_uuid: uuid of the power transformer for which the primary connection is searched
         :return: primary_connection
         """
         primary_connection = None
         power_transformer_ends = []
 
-        #search for two elements of class powertransformerend that point to the powertransformer with ID = elem_uuid
+        #search for two elements of class powertransformerend that point to the powertransformer with ID == elem_uuid
         for power_transformer_end in list_PowerTransformerEnds:
             power_transformer = None
             if isinstance(power_transformer_end.PowerTransformer, list):
-                if (len(power_transformer_end.PowerTransformer)!=1):
+                if len(power_transformer_end.PowerTransformer) != 1:
                     print('WARNING: len(power_transformer_end.PowerTransformer)!=1 for the element with uuid={}. \
                         The first element will be used'.format(power_transformer_end.mRID))
                 power_transformer = power_transformer_end.PowerTransformer[0]
@@ -300,9 +304,11 @@ class System():
             if power_transformer.mRID == elem_uuid:
                 power_transformer_ends.append(power_transformer_end)
 
-        if power_transformer_ends[0].BaseVoltage.nominalVoltage>=power_transformer_ends[1].BaseVoltage.nominalVoltage:
+        if power_transformer_ends[0].BaseVoltage.nominalVoltage >= \
+                power_transformer_ends[1].BaseVoltage.nominalVoltage:
             primary_connection=power_transformer_ends[0]
-        elif power_transformer_ends[1].BaseVoltage.nominalVoltage>=power_transformer_ends[0].BaseVoltage.nominalVoltage:
+        elif power_transformer_ends[1].BaseVoltage.nominalVoltage >= \
+                power_transformer_ends[0].BaseVoltage.nominalVoltage:
             primary_connection=power_transformer_ends[1]
 
         return primary_connection
@@ -310,11 +316,12 @@ class System():
     def _setNodeType(self, list_Terminals):
         """
         set the parameter "type" of all elements of the list self.nodes
-        :param list_PowerTransformerEnd: list of all elements of type Terminal
+        :param list_Terminals: list of all elements of type Terminal
         :return None
         """
         #get a list of Terminals for which the ConductingEquipment is a element of class ExternalNetworkInjection
-        list_Terminals_ENI = [elem for elem in list_Terminals if elem.ConductingEquipment.__class__.__name__ == "ExternalNetworkInjection"]
+        list_Terminals_ENI = [elem for elem in list_Terminals if
+                              elem.ConductingEquipment.__class__.__name__ == "ExternalNetworkInjection"]
         for terminal in list_Terminals_ENI:
             node_uuid = terminal.TopologicalNode.mRID
             for node in self.nodes:
@@ -323,7 +330,8 @@ class System():
             
         #TODO the search for PV nodes has not been tested yet
         #get a list of Terminals for which the ConductingEquipment is a element of class SynchronousMachine
-        list_Terminals_SM = [elem for elem in list_Terminals if elem.ConductingEquipment.__class__.__name__ == "SynchronousMachine"]
+        list_Terminals_SM = [elem for elem in list_Terminals
+                             if elem.ConductingEquipment.__class__.__name__ == "SynchronousMachine"]
         for terminal in list_Terminals_SM:
             node_uuid = terminal.TopologicalNode.mRID
             for node in self.nodes:
@@ -340,12 +348,10 @@ class System():
             to = branch.end_node.index
             self.Ymatrix[fr][to] -= branch.y_pu
             self.Ymatrix[to][fr] -= branch.y_pu
-            self.Ymatrix[fr][fr] += branch.y_pu  # + branch.b_pu
-            self.Ymatrix[to][to] += branch.y_pu  # + branch.b_pu
-            # self.Bmatrix[fr][to] += branch.b_pu
-            # self.Bmatrix[to][fr] += branch.b_pu
+            self.Ymatrix[fr][fr] += branch.y_pu
+            self.Ymatrix[to][to] += branch.y_pu
     
-    #Testing functions
+    #testing functions
     def print_nodes_names(self):
         for node in self.nodes:
             print('{} {}'.format(node.name, node.index))
@@ -357,4 +363,3 @@ class System():
     def print_power(self):
         for node in self.nodes:
             print('{} {}'.format(node.name, node.power))
-            
