@@ -45,9 +45,8 @@ def solve(system):
                 H[m+1][:nodes_num] = np.imag(system.Ymatrix[i])
                 H[m+1][nodes_num:] = np.real(system.Ymatrix[i])
             elif node_type is BusType.PV:
-                z[m + 1] = np.real(node.power)
-                H[m][:nodes_num] = np.real(system.Ymatrix[i])
-                H[m][nodes_num:] = - np.imag(system.Ymatrix[i])
+                z[m] = np.real(node.power_pu)
+                z[m + 1] = np.abs(node.voltage_pu)
 
     epsilon = 10 ** (-10)
     #epsilon = 0.01
@@ -75,10 +74,12 @@ def solve(system):
                     h[m] = np.inner(H[m], state)
                     h[m + 1] = np.inner(H[m + 1], state)
                 elif node_type is BusType.PV:
-                    z[m] = (np.real(node.power_pu) * np.real(V[i]) + 
-                            np.imag(node.power_pu) * np.imag(V[i])) / (np.abs(V[i]) ** 2)
-                    h[m] = np.inner(H[m], state)
+                    h[m] = - np.real(V[i])*(np.inner(np.real(system.Ymatrix[i]),np.real(V)) - np.inner(np.imag(system.Ymatrix[i]),np.imag(V))) - np.imag(V[i])*(np.inner(np.real(system.Ymatrix[i]),np.imag(V)) + np.inner(np.imag(system.Ymatrix[i]),np.real(V)))
                     h[m + 1] = np.abs(V[i])
+                    H[m][:nodes_num] = - np.real(V)*np.real(system.Ymatrix[i]) - np.imag(V)*np.imag(system.Ymatrix[i])
+                    H[m][i] = H[m][i] - np.inner(np.real(system.Ymatrix[i]),np.real(V)) + np.inner(np.imag(system.Ymatrix[i]),np.imag(V))
+                    H[m][nodes_num:] = - np.imag(V)*np.real(system.Ymatrix[i]) + np.real(V)*np.imag(system.Ymatrix[i])
+                    H[m][i2] = H[m][i2] - np.inner(np.real(system.Ymatrix[i]),np.imag(V)) - np.inner(np.imag(system.Ymatrix[i]),np.real(V))
                     H[m + 1][i] = np.cos(np.angle(V[i]))
                     H[m + 1][i2] = np.sin(np.angle(V[i]))
 
