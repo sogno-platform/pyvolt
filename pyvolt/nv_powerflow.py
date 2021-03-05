@@ -74,12 +74,17 @@ def solve(system):
                     h[m] = np.inner(H[m], state)
                     h[m + 1] = np.inner(H[m + 1], state)
                 elif node_type is BusType.PV:
-                    h[m] = np.real(V[i])*(np.inner(np.real(system.Ymatrix[i]),np.real(V)) - np.inner(np.imag(system.Ymatrix[i]),np.imag(V))) + np.imag(V[i])*(np.inner(np.real(system.Ymatrix[i]),np.imag(V)) + np.inner(np.imag(system.Ymatrix[i]),np.real(V)))
+                    h[m] = np.real(V[i]) * (np.inner(np.real(system.Ymatrix[i]), np.real(V)) -
+                                            np.inner(np.imag(system.Ymatrix[i]), np.imag(V))) + \
+                           np.imag(V[i]) * (np.inner(np.real(system.Ymatrix[i]), np.imag(V)) +
+                                            np.inner(np.imag(system.Ymatrix[i]), np.real(V)))
                     h[m + 1] = np.abs(V[i])
-                    H[m][:nodes_num] = np.real(V)*np.real(system.Ymatrix[i]) + np.imag(V)*np.imag(system.Ymatrix[i])
-                    H[m][i] = H[m][i] + np.inner(np.real(system.Ymatrix[i]),np.real(V)) - np.inner(np.imag(system.Ymatrix[i]),np.imag(V))
-                    H[m][nodes_num:] = np.imag(V)*np.real(system.Ymatrix[i]) - np.real(V)*np.imag(system.Ymatrix[i])
-                    H[m][i2] = H[m][i2] + np.inner(np.real(system.Ymatrix[i]),np.imag(V)) + np.inner(np.imag(system.Ymatrix[i]),np.real(V))
+                    H[m][:nodes_num] = np.real(V) * np.real(system.Ymatrix[i]) + np.imag(V) * np.imag(system.Ymatrix[i])
+                    H[m][i] = H[m][i] + np.inner(np.real(system.Ymatrix[i]), np.real(V)) - \
+                        np.inner(np.imag(system.Ymatrix[i]), np.imag(V))
+                    H[m][nodes_num:] = np.imag(V) * np.real(system.Ymatrix[i]) - np.real(V) * np.imag(system.Ymatrix[i])
+                    H[m][i2] = H[m][i2] + np.inner(np.real(system.Ymatrix[i]), np.imag(V)) + \
+                        np.inner(np.imag(system.Ymatrix[i]), np.real(V))
                     H[m + 1][i] = np.cos(np.angle(V[i]))
                     H[m + 1][i2] = np.sin(np.angle(V[i]))
 
