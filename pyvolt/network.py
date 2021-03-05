@@ -238,8 +238,8 @@ class System():
             self.breakers.append(Breaker(from_node=nodes[0], to_node=nodes[1], is_open=is_open))
 
             #if the breaker is open == closed --> close broker
-            if is_open == False:
-                self.breakers[-1].close_breaker(self)
+            if is_open is False:
+                self.breakers[-1].close_breaker()
             else:
                 self.breakers[-1].ideal_connected_with = ''
             
