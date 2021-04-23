@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from pyvolt import network
 from pyvolt import nv_powerflow
 import numpy
@@ -8,8 +9,12 @@ import os
 
 logging.basicConfig(filename='run_nv_powerflow.log', level=logging.INFO, filemode='w')
 
-this_file_folder = os.path.dirname(os.path.realpath(__file__))
-xml_path = os.path.realpath(os.path.join(this_file_folder, "..", "sample_data", "CIGRE-MV-NoTap"))
+#python starts as module in subdirectory, 2 folders up to set the new path
+this_file_folder =  Path(__file__).parents[2]
+p = str(this_file_folder)+"/examples/sample_data/CIGRE-MV-NoTap"
+xml_path = Path(p)
+
+
 xml_files = [os.path.join(xml_path, "Rootnet_FULL_NE_06J16h_DI.xml"),
              os.path.join(xml_path, "Rootnet_FULL_NE_06J16h_EQ.xml"),
              os.path.join(xml_path, "Rootnet_FULL_NE_06J16h_SV.xml"),
