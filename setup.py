@@ -9,7 +9,6 @@ setup(name='pyvolt',
       author_email='acs-software@eonerc.rwth-aachen.de',
       packages=['pyvolt'],
       install_requires=[
-        'matplotlib',
         'numpy',
         'pandas',
         'cimpy'        
