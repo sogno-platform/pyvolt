@@ -150,6 +150,10 @@ class System():
         """
         fill the vectors node, branch and breakers
         """
+        self.nodes = []
+        self.branches = []
+        self.breakers = []
+
         index = 0
         list_TPNode = [elem for elem in res.values() if elem.__class__.__name__ == "TopologicalNode"]
         list_SvVoltage = [elem for elem in res.values() if elem.__class__.__name__ == "SvVoltage"]
@@ -183,7 +187,7 @@ class System():
             for obj_SvPowerFlow in list_SvPowerFlow:
                 if obj_SvPowerFlow.Terminal.TopologicalNode.mRID == uuid_TPNode:
                     pInj -= obj_SvPowerFlow.p
-                    qInj -= obj_SvPowerFlow.q           
+                    qInj -= obj_SvPowerFlow.q
             for obj_Terminal in list_Terminals_ES:
                 if obj_Terminal.TopologicalNode.mRID == uuid_TPNode:
                     for obj_EnergySource in list_EnergySources:
@@ -242,7 +246,7 @@ class System():
                 self.breakers[-1].close_breaker()
             else:
                 self.breakers[-1].ideal_connected_with = ''
-            
+
         #calculate admitance matrix
         self.Ymatrix_calc()
 
@@ -327,8 +331,7 @@ class System():
             for node in self.nodes:
                 if node.uuid == node_uuid:
                     node.type = BusType["SLACK"]
-            
-        #TODO the search for PV nodes has not been tested yet
+
         #get a list of Terminals for which the ConductingEquipment is a element of class SynchronousMachine
         list_Terminals_SM = [elem for elem in list_Terminals
                              if elem.ConductingEquipment.__class__.__name__ == "SynchronousMachine"]
@@ -350,7 +353,7 @@ class System():
             self.Ymatrix[to][fr] -= branch.y_pu
             self.Ymatrix[fr][fr] += branch.y_pu
             self.Ymatrix[to][to] += branch.y_pu
-    
+
     #testing functions
     def print_nodes_names(self):
         for node in self.nodes:
