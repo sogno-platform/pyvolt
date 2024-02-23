@@ -95,8 +95,8 @@ class System():
         self.nodes = []
         self.branches = []
         self.breakers = []
-        self.Ymatrix = np.zeros([], dtype=np.complex)
-        self.Bmatrix = np.zeros([], dtype=np.complex)
+        self.Ymatrix = np.zeros([], dtype=complex)
+        self.Bmatrix = np.zeros([], dtype=complex)
 
     def get_node_by_uuid(self, node_uuid):
         for node in self.nodes:
@@ -344,8 +344,8 @@ class System():
     def Ymatrix_calc(self):
         self.reindex_nodes_list()
         nodes_num = self.get_nodes_num()
-        self.Ymatrix = np.zeros((nodes_num, nodes_num), dtype=np.complex)
-        self.Bmatrix = np.zeros((nodes_num, nodes_num), dtype=np.complex)
+        self.Ymatrix = np.zeros((nodes_num, nodes_num), dtype=complex)
+        self.Bmatrix = np.zeros((nodes_num, nodes_num), dtype=complex)
         for branch in self.branches:
             fr = branch.start_node.index
             to = branch.end_node.index
