@@ -220,16 +220,16 @@ class System():
             self.branches.append(Branch(uuid=uuid_ACLineSegment, r=ACLineSegment.r, x=ACLineSegment.x, 
                                         start_node=start_node, end_node=end_node, 
                                         base_voltage=base_voltage, base_apparent_power=base_apparent_power))
-
+            
         #create branches type powerTransformer
         for power_transformer in list_PowerTransformer:
             uuid_power_transformer = power_transformer.mRID
             nodes = self._get_nodes(list_Terminals, uuid_power_transformer)
             start_node = nodes[0]
             end_node = nodes[1]
-            
+                
             # base voltage = high voltage side (=primaryConnection)
-            primary_connection = self._get_primary_connection(list_PowerTransformerEnds, uuid_power_transformer)
+            primary_connection = self._get_PowerTransformerEnd(list_PowerTransformerEnds, uuid_power_transformer)
             base_voltage = primary_connection.BaseVoltage.nominalVoltage
             self.branches.append(Branch(uuid=uuid_power_transformer, r=primary_connection.r, x=primary_connection.x,
                                         start_node=start_node, end_node=end_node, base_voltage=base_voltage,
@@ -284,9 +284,9 @@ class System():
 
         return [start_node, end_node]
 
-    def _get_primary_connection(self, list_PowerTransformerEnds, elem_uuid):
+    def _get_PowerTransformerEnd(self, list_PowerTransformerEnds, elem_uuid):
         """
-        get primaryConnection of the powertransformer with uuid = elem_uuid
+        get PowerTransformerEnd with x>0, r>0 of the powertransformer with uuid = elem_uuid
         :param list_PowerTransformerEnds: list of all elements of type PowerTransformerEnd
         :param elem_uuid: uuid of the power transformer for which the primary connection is searched
         :return: primary_connection
@@ -307,13 +307,16 @@ class System():
         
             if power_transformer.mRID == elem_uuid:
                 power_transformer_ends.append(power_transformer_end)
-
-        if power_transformer_ends[0].BaseVoltage.nominalVoltage >= \
-                power_transformer_ends[1].BaseVoltage.nominalVoltage:
-            primary_connection=power_transformer_ends[0]
-        elif power_transformer_ends[1].BaseVoltage.nominalVoltage >= \
-                power_transformer_ends[0].BaseVoltage.nominalVoltage:
-            primary_connection=power_transformer_ends[1]
+        
+        if (len(power_transformer_ends)==0):
+            raise Exception('ERROR: No PowerTransformerEnd connected to the PowerTransformer UUID={} could be found!'.format(elem_uuid)) 
+            
+        if (power_transformer_ends[0].r>0 or power_transformer_ends[0].x>0):
+            primary_connection = power_transformer_ends[0]
+        elif (power_transformer_ends[1].r>0 or power_transformer_ends[1].x>0):
+            primary_connection = power_transformer_ends[1]
+        else:
+            raise Exception('ERROR: The impedances of the PT UUID={} are equal to zero!'.format(elem_uuid)) 
 
         return primary_connection
 
