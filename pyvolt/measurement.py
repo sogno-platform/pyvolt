@@ -204,7 +204,7 @@ class MeasurementSet:
         if type == "simulation":
             np.random.seed(seed)
             if dist == "normal":
-                err_pu = np.random.normal(0, 0, len(self.measurements))
+                err_pu = np.random.normal(0, 1, len(self.measurements))
                 for index, measurement in enumerate(self.measurements):
                     if measurement.meas_type not in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
                         zdev = measurement.meas_value_ideal * measurement.std_dev

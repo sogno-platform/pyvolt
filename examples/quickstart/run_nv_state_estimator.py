@@ -32,17 +32,18 @@ results_pf, num_iter_cim = nv_powerflow.solve(system)
 
 # --- State Estimation ---
 """ Write here the percent uncertainties of the measurements"""
-V_unc = 0
-I_unc = 0
-Sinj_unc = 0
-S_unc = 0
-Pmu_mag_unc = 0
-Pmu_phase_unc = 0
+V_unc = 50
+I_unc = 50
+Sinj_unc = 50
+S_unc = 50
+Pmu_mag_unc = 50
+Pmu_phase_unc = 50
 
 # Create measurements data structures
 """use all node voltages as measures"""
 measurements_set = measurement.MeasurementSet()
 for node in results_pf.nodes:
+    print('{}={}'.format(node.topology_node.uuid, node.voltage))
     measurements_set.create_measurement(node.topology_node, measurement.ElemType.Node, measurement.MeasType.Vpmu_mag,
                                         np.absolute(node.voltage_pu), Pmu_mag_unc)
 for node in results_pf.nodes:
