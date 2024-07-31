@@ -386,3 +386,26 @@ class MeasurementSet:
         meas_set = MeasurementSet()
         meas_set.measurements = meas_set_1.measurements + meas_set_2.measurements
         return meas_set
+
+    def update_existing_measurement(self, element_uuid, meas_data, dist="normal", seed=None, type="simulation",
+                                    ):
+        for meas in self.measurements:
+            if meas.element.uuid == element_uuid:
+                if type == "simulation":
+                    np.random.seed(seed)
+                    if dist == "normal":
+                        err_pu = np.random.normal(0, 0, 1)
+                        if meas.meas_type not in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
+                            zdev = meas_data * meas.std_dev
+                        elif meas.meas_type in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
+                            zdev = meas.std_dev
+                            meas.meas_value = meas_data + zdev * err_pu[0]
+                    elif dist == "uniform":
+                        err_pu = np.random.uniform(-1, 1, 1)
+                        if meas.meas_type not in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
+                            zdev = (meas_data * meas.std_dev)
+                        elif meas.meas_type in [MeasType.Ipmu_phase, MeasType.Vpmu_phase]:
+                            zdev = meas.std_dev
+                        meas.meas_value = meas_data + np.multiply(3 * zdev, err_pu[0])
+                elif type == "field":
+                    meas.meas_value = meas_data
