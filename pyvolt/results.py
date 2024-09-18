@@ -258,7 +258,7 @@ class Results():
         get node voltages
         - if pu==True --> voltages are expressed as per-unit
         """
-        voltages = np.zeros(len(self.nodes), dtype=np.complex_)
+        voltages = np.zeros(len(self.nodes), dtype=np.complex128)
         if pu == True:
             for node in self.nodes:
                 voltages[node.topology_node.index] = node.voltage_pu
@@ -273,7 +273,6 @@ class Results():
         get branch powers
         - if pu==True --> branch powers are expressed as per-unit
         """
-        #branch_powers = np.zeros(len(self.branches), dtype=np.complex_)
         branch_powers = []
         if pu == True:
             for branch in self.branches:
@@ -289,7 +288,7 @@ class Results():
         get node currents
         - if pu==True --> voltages are expressed as per-unit
         """
-        Iinj = np.zeros(len(self.nodes), dtype=np.complex_)
+        Iinj = np.zeros(len(self.nodes), dtype=np.complex128)
         if pu == True:
             for node in self.nodes:
                 Iinj[node.topology_node.index] = node.current_pu
@@ -304,7 +303,7 @@ class Results():
         get node power
         - if pu==True --> voltages are expressed as per-unit
         """
-        Sinj = np.zeros(len(self.nodes), dtype=np.complex_)
+        Sinj = np.zeros(len(self.nodes), dtype=np.complex128)
         if pu == True:
             for node in self.nodes:
                 Sinj[node.topology_node.index] = node.power_pu
@@ -319,7 +318,7 @@ class Results():
         get branch currents
         - if pu==True --> voltages are expressed as per-unit
         """
-        I = np.zeros(len(self.branches), dtype=np.complex_)
+        I = np.zeros(len(self.branches), dtype=np.complex128)
         if pu == True:
             for branch_idx in range(len(self.branches)):
                 I[branch_idx] = self.branches[branch_idx].current_pu
@@ -334,7 +333,7 @@ class Results():
         get complex Power flow at branch, measured at initial node
         - if pu==True --> voltages are expressed as per-unit
         """
-        S1 = np.zeros(len(self.branches), dtype=np.complex_)
+        S1 = np.zeros(len(self.branches), dtype=np.complex128)
         if pu == True:
             for branch_idx in range(len(self.branches)):
                 S1[branch_idx] = self.branches[branch_idx].power_pu
@@ -349,7 +348,7 @@ class Results():
         get complex Power flow at branch, measured at final node
         - if pu==True --> voltages are expressed as per-unit
         """
-        S2 = np.zeros(len(self.branches), dtype=np.complex_)
+        S2 = np.zeros(len(self.branches), dtype=np.complex128)
         if pu == True:
             for branch_idx in range(len(self.branches)):
                 S2[branch_idx] = self.branches[branch_idx].power2_pu
