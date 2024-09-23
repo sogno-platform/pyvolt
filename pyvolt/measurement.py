@@ -21,6 +21,8 @@ class MeasType(Enum):
     Ipmu_phase = 10  # Branch Current
     S2_real = 11  # Active Power flow at branch, measured at final node (S2.real)
     S2_imag = 12  # Reactive Power flow at branch, measured at final node (S2.imag)
+    Ipmu_inj_mag = 13 # Node current injection magnitude
+    Ipmu_inj_phase = 14 # Node current injection phase
 
 
 class Measurement:
@@ -77,7 +79,7 @@ class MeasurementSet:
                     print("Updating measurement value for {} of type {} from {} to {}".format(meas.element.uuid, str(meas.meas_type), meas.meas_value, meas_value_pu))                    
                     meas.meas_value = meas_value_pu                
                 # special case for voltage magnitude: SOGNO interface only knows Ipmu_mag while measurement set distincts between Ipmu_mag and I_mag
-                elif meas_type == MeasType.Ipmu_mag and (meas.meas_type == MeasType.Ipmu_mag or meas.meas_type == MeasType.I_mag):
+                elif meas_type == MeasType.Ipmu_mag and (meas.meas_type == MeasType.Ipmu_mag or meas.meas_type == MeasType.I_mag or meas.meas_type == MeasType.Ipmu_inj_mag):
                     # current pu conversion assuming that meas_data from device are in A and single-phase value according to sogno interface
                     # while base_current in [kA]
                     if not value_in_pu:
@@ -87,7 +89,7 @@ class MeasurementSet:
                     print("Updating measurement value for {} of type {} from {} to {}".format(meas.element.uuid, str(meas.meas_type), meas.meas_value, meas_value_pu))
                     meas.meas_value = meas_value_pu
                 # case for other measurements 
-                elif (meas_type == meas.meas_type and (meas_type == MeasType.S1_real or meas_type == MeasType.S1_imag)): 
+                elif (meas_type == meas.meas_type and (meas_type == MeasType.S1_real or meas_type == MeasType.S1_imag or meas_type == MeasType.Sinj_imag or meas_type == MeasType.Sinj_imag)): 
                     # power pu conversion assuming that meas_data from device are in watts and single-phase value according to sogno interface
                     # while baseApparent power in [MW] and three-phase value
                     if not value_in_pu:    
@@ -96,7 +98,7 @@ class MeasurementSet:
                         meas_value_pu = meas_data
                     print("Updating measurement value for {} of type {} from {} to {}".format(meas.element.uuid, str(meas.meas_type), meas.meas_value, meas_value_pu))
                     meas.meas_value = meas_value_pu
-                elif (meas_type == meas.meas_type and (meas_type == MeasType.Vpmu_phase or meas_type == MeasType.Ipmu_phase)):
+                elif (meas_type == meas.meas_type and (meas_type == MeasType.Vpmu_phase or meas_type == MeasType.Ipmu_phase or meas_type == MeasType.Ipmu_inj_phase)):
                     print("Updating measurement value for {} of type {} from {} to {}".format(meas.element.uuid, str(meas.meas_type), meas.meas_value, meas_data))
                     meas.meas_value = meas_data
 
@@ -190,6 +192,16 @@ class MeasurementSet:
                     meas_value_ideal_phase = np.angle(pf_branch.current_pu)
                     self.create_measurement(element, ElemType.Branch, MeasType.Ipmu_mag, meas_value_ideal_mag, unc_mag)
                     self.create_measurement(element, ElemType.Branch, MeasType.Ipmu_phase, meas_value_ideal_phase, unc_phase)
+            elif key == "Ipmu_inj":
+                unc_mag = float(value['unc_mag'])
+                unc_phase = float(value['unc_phase'])
+                for uuid in value['uuid']:
+                    pf_node = powerflow_results.get_node(uuid=uuid)
+                    element = pf_node.topology_node
+                    meas_value_ideal_mag = np.abs(pf_node.current_pu)
+                    meas_value_ideal_phase = np.angle(pf_node.current_pu)
+                    self.create_measurement(element, ElemType.Node, MeasType.Ipmu_inj_mag, meas_value_ideal_mag, unc_mag)
+                    self.create_measurement(element, ElemType.Node, MeasType.Ipmu_inj_phase, meas_value_ideal_phase, unc_phase)
 
     def meas_creation(self, dist="normal", seed=None, type="simulation"):
         """
@@ -316,6 +328,17 @@ class MeasurementSet:
             meas_real[ipmu_mag_index] = iamp * np.cos(itheta)
             meas_real[ipmu_phase_index] = iamp * np.sin(itheta)
 
+        """ Replace in z amplitude and phase of Ipmu_inj by real and imaginary part """
+        # get all measurements of type MeasType.Ipmu_mag
+        Ipmu_inj_mag_idx = self.getIndexOfMeasurements(type=MeasType.Ipmu_inj_mag)
+        # get all measurements of type MeasType.Ipmu_phase
+        Ipmu_inj_phase_idx = self.getIndexOfMeasurements(type=MeasType.Ipmu_inj_phase)
+        for ipmu_inj_mag_index, ipmu_inj_phase_index in zip(Ipmu_inj_mag_idx, Ipmu_inj_phase_idx):
+            iamp = self.measurements[ipmu_inj_mag_index].meas_value
+            itheta = self.measurements[ipmu_inj_phase_index].meas_value
+            meas_real[ipmu_inj_mag_index] = iamp * np.cos(itheta)
+            meas_real[ipmu_inj_phase_index] = iamp * np.sin(itheta)
+
         return meas_real
     
     def getSortedMeasurementSet(self):
@@ -326,9 +349,9 @@ class MeasurementSet:
         sortedMeasurementSet = MeasurementSet()
 
         # Sort measurements  in the order required by the SE algorithm
-        # Required order: Vmag, Pinj, Qinj, P1, Q1, P2, Q2, Imag, Vpmu_mag, Vpmu_phase, Ipmu_mag, Ipmu_phase
+        # Required order: Vmag, Pinj, Qinj, P1, Q1, P2, Q2, Imag, Vpmu_mag, Vpmu_phase, Ipmu_mag, Ipmu_phase, Ipmu_inj_mag, Ipmu_inj_phase
         for type_meas in [MeasType.V_mag, MeasType.Sinj_real, MeasType.Sinj_imag, MeasType.S1_real, MeasType.S1_imag, \
-                         MeasType.S2_real, MeasType.S2_imag, MeasType.I_mag, MeasType.Vpmu_mag, MeasType.Vpmu_phase, MeasType.Ipmu_mag, MeasType.Ipmu_phase]:
+                         MeasType.S2_real, MeasType.S2_imag, MeasType.I_mag, MeasType.Vpmu_mag, MeasType.Vpmu_phase, MeasType.Ipmu_mag, MeasType.Ipmu_phase, MeasType.Ipmu_inj_mag, MeasType.Ipmu_inj_phase]:
             sortedMeasurementSet.measurements += self.getMeasurementsOfType(type_meas)
         return sortedMeasurementSet
 
