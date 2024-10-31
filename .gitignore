@@ -1,6 +1,7 @@
 # ide folders
 .idea
 .vscode
+.venv
 
 # python folders
 *.egg-info/
