@@ -14,10 +14,10 @@ logging.basicConfig(filename='test_nv_state_estimator.log', level=logging.INFO, 
 
 this_file_folder = os.path.dirname(os.path.realpath(__file__))
 xml_path = os.path.realpath(os.path.join(this_file_folder, "..", "sample_data", "CIGRE-MV-NoTap"))
-xml_files = [os.path.join(xml_path, "Rootnet_FULL_NE_06J16h_DI.xml"),
-             os.path.join(xml_path, "Rootnet_FULL_NE_06J16h_EQ.xml"),
-             os.path.join(xml_path, "Rootnet_FULL_NE_06J16h_SV.xml"),
-             os.path.join(xml_path, "Rootnet_FULL_NE_06J16h_TP.xml")]
+xml_files = [os.path.join(xml_path, "CIGRE-MV-NoTap_DI.xml"),
+             os.path.join(xml_path, "CIGRE-MV-NoTap_EQ.xml"),
+             os.path.join(xml_path, "CIGRE-MV-NoTap_SV.xml"),
+             os.path.join(xml_path, "CIGRE-MV-NoTap_TP.xml")]
 
 # Read cim files and create new network.System object
 res = cimpy.cim_import(xml_files, "cgmes_v2_4_15")

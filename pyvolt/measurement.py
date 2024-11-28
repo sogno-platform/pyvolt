@@ -24,7 +24,7 @@ class MeasType(Enum):
 
 
 class Measurement:
-    def __init__(self, element, element_type, meas_type, meas_value_ideal, unc):
+    def __init__(self, element, element_type, meas_type, meas_value, unc):
         """
         Creates a measurement, which is used by the estimation module. Possible types of measurements are: v, p, q, i, Vpmu and Ipmu
         @element: pointer to the topology_node / topology_branch (object of class network.Node / network.Branch)
@@ -43,14 +43,15 @@ class Measurement:
         self.element = element
         self.element_type = element_type
         self.meas_type = meas_type
-        self.meas_value_ideal = meas_value_ideal
+        self.meas_value_ideal = meas_value
         self.std_dev = unc / 300
-        self.meas_value = 0.0  # measured values (affected by uncertainty)
+        self.meas_value = meas_value  # measured values (affected by uncertainty)
 
 
 class MeasurementSet:
-    def __init__(self):
+    def __init__(self, system=None):
         self.measurements = []  # array with all measurements
+        self.system = system
 
     def create_measurement(self, element, element_type, meas_type, meas_value_ideal, unc):
         """
@@ -190,6 +191,32 @@ class MeasurementSet:
                     meas_value_ideal_phase = np.angle(pf_branch.current_pu)
                     self.create_measurement(element, ElemType.Branch, MeasType.Ipmu_mag, meas_value_ideal_mag, unc_mag)
                     self.create_measurement(element, ElemType.Branch, MeasType.Ipmu_phase, meas_value_ideal_phase, unc_phase)
+
+    def read_measurements_from_dict(self, measurements, meas_config):
+        """
+        read measurements from dicts
+
+        @param measurements: dict of measurements 'uuid': {'MeasType': value}
+        @param meas_config: dict of measurement configurations 'Measurement': { 'MeasType': { "uuid":["value"], "unc": value } }
+        """
+
+        for key, value in meas_config['Measurement'].items():
+            if key == "Vmag":
+                meas_unc = float(value['unc'])
+                for uuid in value['uuid']:
+                    element = self.system.get_node_by_uuid(uuid)
+                    meas_value_ideal = measurements[uuid]['V_mag']
+                    self.create_measurement(element, ElemType.Node, MeasType.V_mag, meas_value_ideal, meas_unc)
+            elif key == "Vpmu":
+                meas_unc_mag = float(value['unc_mag'])
+                meas_unc_phase = float(value['unc_phase'])
+                for uuid in value['uuid']:
+                    element = self.system.get_node_by_uuid(uuid)
+                    meas_value_ideal_mag = measurements[uuid]['Vpmu_mag']
+                    meas_value_ideal_phase = measurements[uuid]['Vpmu_phase']
+                    self.create_measurement(element, ElemType.Node, MeasType.Vpmu_mag, meas_value_ideal_mag, meas_unc_mag)
+                    self.create_measurement(element, ElemType.Node, MeasType.Vpmu_phase, meas_value_ideal_phase, meas_unc_phase)
+
 
     def meas_creation(self, dist="normal", seed=None, type="simulation"):
         """

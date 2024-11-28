@@ -1,0 +1,47 @@
+{
+    "Measurement": {
+        "Vmag":{
+            "uuid":[],
+            "unc":0
+            },
+        "Imag":{
+            "uuid":[],
+            "unc":0
+            },
+        "Pinj":{
+            "uuid":[],
+            "unc":0
+            },
+        "Qinj":{
+            "uuid":[],
+            "unc":0
+            },
+        "P1":{
+            "uuid":[],
+            "unc":0
+            },
+        "Q1":{
+            "uuid":[],
+            "unc":0
+            },
+        "P2":{
+            "uuid":[],
+            "unc":0
+            },
+        "Q2":{
+            "uuid":[],
+            "unc":0
+            },
+        "Vpmu":{
+            "uuid":["N0","N1","N12","N3","N5","N4","N10","N9","N8","N7","N6","N14","N13","N11","N2"],
+            "unc_mag":0,
+            "unc_phase":0
+            },
+        "Ipmu":{
+            "uuid":[],
+            "unc_mag":0,
+            "unc_phase":0
+            }
+        }
+    }
+    
